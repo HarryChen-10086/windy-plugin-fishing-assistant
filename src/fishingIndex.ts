@@ -67,104 +67,31 @@ export interface DayScore {
 
 /** 黄金时段 */
 export interface PrimeWindow {
-    label: string;
+    /** morning | evening，用于模板中按语言取标签 */
+    kind: 'morning' | 'evening';
     emoji: string;
     start: number;
     end: number;
 }
 
-/** 指数等级 */
+/** 指数等级（0 极佳 … 4 很差） */
 export interface ScoreLevel {
-    label: string;
+    level: 0 | 1 | 2 | 3 | 4;
     color: string;
 }
 
 const HOUR = 3600 * 1000;
 
-/** 指数等级划分 */
+/**
+ * 指数等级划分（语言无关，只返回等级与颜色）。
+ * 等级文字请通过 i18n 的 levelLabel(level, lang) 获取。
+ */
 export const scoreLevel = (score: number): ScoreLevel => {
-    if (score >= 80) return { label: '极佳', color: '#2ecc71' };
-    if (score >= 60) return { label: '良好', color: '#8bc34a' };
-    if (score >= 40) return { label: '一般', color: '#f1c40f' };
-    if (score >= 25) return { label: '较差', color: '#e67e22' };
-    return { label: '很差', color: '#e74c3c' };
-};
-
-/** 月相中文名 */
-export const moonPhaseText = (phase: MoonPhase): string => {
-    switch (phase) {
-        case MoonPhaseEnum.NewMoon:
-            return '新月';
-        case MoonPhaseEnum.WaxingCrescent:
-            return '娥眉月';
-        case MoonPhaseEnum.FirstQuarter:
-            return '上弦月';
-        case MoonPhaseEnum.WaxingGibbous:
-            return '盈凸月';
-        case MoonPhaseEnum.FullMoon:
-            return '满月';
-        case MoonPhaseEnum.WaningGibbous:
-            return '亏凸月';
-        case MoonPhaseEnum.LastQuarter:
-            return '下弦月';
-        case MoonPhaseEnum.WaningCrescent:
-            return '残月';
-        default:
-            return '未知';
-    }
-};
-
-/** 天气图标 -> 中文描述 + emoji */
-export const weatherText = (icon: WeatherConditionIcon): { text: string; emoji: string } => {
-    switch (icon) {
-        case IconEnum.Clear:
-            return { text: '晴', emoji: '☀️' };
-        case IconEnum.MostlyClear:
-            return { text: '大部晴朗', emoji: '🌤️' };
-        case IconEnum.PartlyCloudy:
-            return { text: '多云', emoji: '⛅' };
-        case IconEnum.Overcast:
-            return { text: '阴', emoji: '☁️' };
-        case IconEnum.MostlyClearRain:
-            return { text: '晴转雨', emoji: '🌦️' };
-        case IconEnum.PartlyCloudyRain:
-            return { text: '多云有雨', emoji: '🌧️' };
-        case IconEnum.OvercastRain:
-            return { text: '阴雨', emoji: '🌧️' };
-        case IconEnum.MostlyClearSnow:
-        case IconEnum.PartlyCloudySnow:
-        case IconEnum.OvercastSnow:
-            return { text: '雪', emoji: '🌨️' };
-        case IconEnum.MostlyClearRainWithSnow:
-        case IconEnum.PartlyCloudyRainWithSnow:
-        case IconEnum.OvercastRainWithSnow:
-            return { text: '雨夹雪', emoji: '🌨️' };
-        case IconEnum.OvercastThunderstormRain:
-        case IconEnum.OvercastThunderstormSnow:
-        case IconEnum.OvercastThunderstormRainWithSnow:
-            return { text: '雷暴', emoji: '⛈️' };
-        case IconEnum.PartlyCloudyThunderstormRain:
-            return { text: '雷阵雨', emoji: '⛈️' };
-        case IconEnum.ThunderstormOvercast:
-        case IconEnum.ThunderstormPartlyCloudy:
-            return { text: '雷暴', emoji: '⛈️' };
-        case IconEnum.Fog:
-        case IconEnum.ClearFog:
-            return { text: '雾', emoji: '🌫️' };
-        case IconEnum.MostlyClearShowers:
-        case IconEnum.PartlyCloudyShowers:
-        case IconEnum.OvercastShowers:
-            return { text: '阵雨', emoji: '🌦️' };
-        default:
-            return { text: '未知', emoji: '❓' };
-    }
-};
-
-/** 风向（度）-> 中文方位 */
-export const dir2compass = (deg: number | null | undefined): string => {
-    if (deg === null || deg === undefined || Number.isNaN(deg)) return '--';
-    const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
-    return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+    if (score >= 80) return { level: 0, color: '#2ecc71' };
+    if (score >= 60) return { level: 1, color: '#8bc34a' };
+    if (score >= 40) return { level: 2, color: '#f1c40f' };
+    if (score >= 25) return { level: 3, color: '#e67e22' };
+    return { level: 4, color: '#e74c3c' };
 };
 
 /** 气压趋势得分（0-25）：比较相邻两个时间步的气压差（Pa） */
@@ -434,8 +361,8 @@ export const primeWindows = (celestial: Celestial | undefined): PrimeWindow[] =>
     const sunrise = celestial.sunriseTs;
     const sunset = celestial.sunsetTs;
     return [
-        { label: '清晨黄金时段', emoji: '🌅', start: sunrise - 2 * HOUR, end: sunrise + 1.5 * HOUR },
-        { label: '傍晚黄金时段', emoji: '🌇', start: sunset - 3 * HOUR, end: sunset + 1 * HOUR },
+        { kind: 'morning', emoji: '🌅', start: sunrise - 2 * HOUR, end: sunrise + 1.5 * HOUR },
+        { kind: 'evening', emoji: '🌇', start: sunset - 3 * HOUR, end: sunset + 1 * HOUR },
     ];
 };
 
@@ -456,12 +383,6 @@ export const formatLocalTime = (ts: number, offsetHours: number): string => {
     const hh = String(d.getUTCHours()).padStart(2, '0');
     const mm = String(d.getUTCMinutes()).padStart(2, '0');
     return `${hh}:${mm}`;
-};
-
-/** 中文星期 */
-export const weekdayCN = (ts: number, offsetHours: number): string => {
-    const d = new Date(ts + offsetHours * HOUR);
-    return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getUTCDay()];
 };
 
 /** 找到最接近给定时间戳的评分 */

@@ -3,6 +3,9 @@
  * 字段与 Windy 客户端返回的数据保持一致，方便本插件类型安全地使用。
  */
 
+/** 插件支持的语言 */
+export type Lang = 'en' | 'zh';
+
 /** 天气状况图标码（与 Windy 客户端 WeatherConditionIcon 枚举一致） */
 export enum WeatherConditionIcon {
     Clear = 1,

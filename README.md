@@ -1,88 +1,99 @@
-# 🎣 Windy 钓鱼助手 (Windy Fishing Assistant)
+# 🎣 Windy Fishing Assistant Plugin
 
-一个面向钓鱼爱好者的 Windy 插件：基于 **Windy 免费点预报客户端 API** 计算指定地点的
-当前与未来「钓鱼指数」，并展示钓鱼者关心的各项气象与海况信息。所有数据均来自
-Windy（无需付费 API Key、不依赖第三方数据源）。
+> **Language**: English · [**简体中文**](./README_zh.md)
 
-**插件文档: [https://docs.windy-plugins.com/](https://docs.windy-plugins.com/)**
+A Windy plugin for anglers: it calculates the **current and future fishing index** for a
+chosen spot and shows all the weather & sea conditions anglers care about. All data comes
+from **Windy's free point-forecast client API** — no paid API Key, no third-party data.
 
-## 功能特性
+**Plugin docs: [https://docs.windy-plugins.com/](https://docs.windy-plugins.com/)**
 
-- **钓鱼指数（0-100）**：综合 气压趋势、天气状况、风力、温度、时段、月相 六个因子加权计算
-  - 当前指数（取最接近当前时刻的预报时段）
-  - 未来 5 天每日指数（每日最佳时段 + 平均分）
-  - 分项得分可视化
-- **当前气象条件**：气温、体感温度、风力/阵风、风向、气压与趋势、相对湿度、云量、降水、月相、海拔
-- **日出日落与黄金时段**：自动计算清晨（日出前 2h～日出后 1.5h）与傍晚（日落前 3h～日落后 1h）两个黄金窗口，并预估窗口内指数
-- **海浪与海况**（近海时自动显示）：有效波高、浪向、周期、涌浪、海表温度、波功率
-- **天气预警**：展示该地点生效的 CAP 预警（类型、严重级别、时间范围）
-- **快捷交互**：
-  - 单击地图 / 拖动标记 更换钓点
-  - 「定位到我」按钮（GPS）
-  - 预报模型切换（ECMWF / GFS / ICON，海浪数据自动跟随）
-  - 一键切换地图图层（风、阵风、雨、温度、浪、海温）
+## Features
 
-## 快速开始
+- **Fishing Index (0–100)** — weighted from six factors: pressure trend, weather, wind, temperature, time of day, and moon phase
+  - Current index (from the forecast segment closest to now)
+  - Next 5 days daily index (best segment + daily average)
+  - Visual per-factor breakdown
+- **Current conditions** — air temp, feels-like, wind/gust, direction, pressure & trend, relative humidity, cloud cover, precipitation, moon phase, elevation
+- **Sunrise/Sunset & Prime Time** — auto-calculates morning (2h before → 1.5h after sunrise) and evening (3h before → 1h after sunset) golden windows with an estimated index
+- **Waves & Sea State** (shown near the sea) — significant wave height, direction, period, swell, sea surface temperature, wave power
+- **Weather alerts** — CAP alerts active for the spot (type, severity, time range)
+- **Quick interactions**:
+  - Click the map / drag the marker to change the fishing spot
+  - "Locate me" button (GPS)
+  - Forecast model switch (ECMWF / GFS / ICON; wave data follows automatically)
+  - One-click map layer switching (Wind, Gust, Rain, Temp, Waves, SST)
+
+## Languages
+
+English is the default. The plugin also supports **简体中文**:
+
+- A **🌐** button in the toolbar toggles between English and Chinese.
+- If your Windy/browser language is **Simplified Chinese**, the plugin switches to Chinese automatically on open (you can still change it manually).
+
+## Quick Start (For Developers)
 
 ```bash
 npm i
 npm start
 ```
 
-然后打开 <https://www.windy.com/developer-mode>，在开发者模式中加载插件：
+Then open <https://www.windy.com/developer-mode> and load the plugin:
 
 ```
 https://localhost:9999/plugin.js
 ```
 
-打开插件后：
-- 默认以**地图中心**作为钓点，或从地图**右键菜单**打开（自动传入点击位置）
-- 单击地图任意位置更换钓点，或拖动地图上的脉冲标记
-- 顶部可切换预报模型，点击「定位到我」使用 GPS 位置
+Once opened:
+- The **map center** is used as the fishing spot by default, or open it from the map's **right-click context menu** (passes the clicked position).
+- Click anywhere on the map to change the spot, or drag the pulsing marker.
+- Switch the forecast model at the top, and use "Locate me" for your GPS position.
 
-## 项目结构
+## Project Structure
 
 ```
 src/
-├── pluginConfig.ts      # 插件配置（名称、标题、图标、路由等）
-├── plugin.svelte        # 插件主界面（Svelte 组件）
-├── fishingIndex.ts      # 钓鱼指数计算逻辑（纯函数，含评分规则）
-└── types.ts             # Windy 点预报数据的本地类型声明
+├── pluginConfig.ts      # Plugin configuration (name, title, icon, routing…)
+├── plugin.svelte        # Main UI (Svelte component)
+├── fishingIndex.ts      # Fishing-index scoring logic (pure functions)
+├── i18n.ts              # en/zh translations & language detection
+└── types.ts             # Local typings for Windy point-forecast data
 ```
 
-## 数据来源说明
+## Data Sources
 
-插件通过 `@windy/fetch` 模块调用 Windy 客户端的免费接口：
+All data comes from Windy's free client API via the `@windy/fetch` module:
 
-| 数据 | 接口 |
+| Data | API |
 | --- | --- |
-| 大气点预报（温度/风/气压/降水/天气/月相） | `getPointForecastData(model, {lat, lon, days, step}, include)` |
-| 海浪/涌浪/周期 | `getPointForecastData('ecmwfWaves' 等, ...)` |
-| 日出日落/时区/海陆 | 上述接口 `include.celestial` |
-| 露点/云量（用于计算相对湿度） | 上述接口 `include.meteogram` |
-| 每日天气摘要 | 上述接口 `include.summary` |
-| 天气预警 | `getCapAlertsSummary({lat, lon})` |
-| 单位换算 | `@windy/metrics`（跟随用户设置的 Windy 单位） |
+| Air point forecast (temp/wind/pressure/precip/weather/moon) | `getPointForecastData(model, {lat, lon, days, step}, include)` |
+| Waves / swell / period | `getPointForecastData('ecmwfWaves', …)` |
+| Sunrise/sunset, timezone, land/sea | `include.celestial` above |
+| Dew point / cloud cover (for relative humidity) | `include.meteogram` above |
+| Daily weather summary | `include.summary` above |
+| Weather alerts | `getCapAlertsSummary({lat, lon})` |
+| Unit conversion | `@windy/metrics` (follows the user's Windy units) |
 
-> 提示：以上均为插件可直接免费访问的 Windy 客户端 API，无需申请付费 API Key。
+> All of the above are free client APIs available to plugins — no paid Windy API Key required.
 
-## 钓鱼指数评分规则
+## Fishing Index Scoring
 
-| 因子 | 满分 | 说明 |
+| Factor | Max | Notes |
 | --- | --- | --- |
-| 气压趋势 | 25 | 相邻时段气压差越小越好；绝对气压处于 1008–1022 hPa 加分 |
-| 天气状况 | 20 | 晴/多云最佳；阵雨/小雨次之；雷暴、暴雪最差 |
-| 风力 | 15 | 1.5–6 m/s 最佳；超过 12 m/s 大幅减分 |
-| 温度 | 15 | 10–25°C 最舒适；低于 0°C 或高于 35°C 大幅减分 |
-| 时段 | 15 | 日出/日落前后黄金时段满分 |
-| 月相 | 10 | 新月/满月前后鱼情较好 |
+| Pressure trend | 25 | Smaller pressure change between steps is better; 1008–1022 hPa adds a bonus |
+| Weather | 20 | Clear/partly cloudy best; showers/light rain okay; thunderstorms & heavy snow worst |
+| Wind | 15 | 1.5–6 m/s ideal; >12 m/s penalized heavily |
+| Temperature | 15 | 10–25°C most comfortable; below 0°C or above 35°C penalized |
+| Time of day | 15 | Full marks around sunrise/sunset prime windows |
+| Moon phase | 10 | Around new moon & full moon generally better |
 
-指数分级：**≥80 极佳 · ≥60 良好 · ≥40 一般 · ≥25 较差 · <25 很差**。
+Levels: **≥80 Excellent · ≥60 Good · ≥40 Fair · ≥25 Poor · <25 Very poor**.
 
-> ⚠️ 指数仅供参考，实际钓况还受水体、鱼种、季节等本地因素影响，请结合实况判断。
+> ⚠️ The index is for reference only — actual fishing also depends on water body, species, season, etc. Always check local conditions.
 
 ## CHANGELOG
 
 -   1.0.0
-    -   首个版本：钓鱼指数、当前气象、黄金时段、5 日预测、海浪海况、天气预警、地图图层快捷切换
+    -   Initial release.
+
 
