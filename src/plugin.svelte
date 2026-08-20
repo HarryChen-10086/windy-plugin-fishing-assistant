@@ -1,39 +1,1044 @@
 <div class="plugin__mobile-header">
-    { title }
+    {title}
 </div>
-<section class="plugin__content">
+<section class="plugin__content fa-root">
     <div
         class="plugin__title plugin__title--chevron-back"
-        on:click={ () => bcast.emit('rqstOpen', 'menu') }
+        on:click={() => bcast.emit('rqstOpen', 'menu')}
     >
-    { title }
+        {title}
+        {#if reverseName && loc}
+            {@const { lat, lon } = loc}
+            <div class="plugin__title__subtitle">
+                {reverseName} · {normalizeLatLon(lat)}, {normalizeLatLon(lon)}
+            </div>
+        {/if}
     </div>
-    Put your plugin code here
+
+    <!-- 顶部设置：模型选择 + 定位 -->
+    <div class="fa-toolbar">
+        <label class="fa-model">
+            模型
+            <select bind:value={selectedModel} on:change={() => refresh()}>
+                <option value="ecmwf">ECMWF</option>
+                <option value="gfs">GFS</option>
+                <option value="icon">ICON</option>
+            </select>
+        </label>
+        <button class="button button--variant-orange fa-locate" on:click={locateMe}>📍 定位到我</button>
+        <div class="fa-hint">点击地图任意位置可更换钓点 🗺️</div>
+    </div>
+
+    {#if loading}
+        <div class="fa-loading">⏳ 正在获取 Windy 气象数据…</div>
+    {/if}
+
+    {#if error}
+        <div class="rounded-box bg-error size-s mt-10 fa-error">⚠️ {error}</div>
+    {/if}
+
+    {#if air && nowScore}
+        {@const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0}
+        {@const nowIdx = Math.max(0, air.data.ts.indexOf(nowScore.ts))}
+        {@const weather = weatherText(nowScore.icon)}
+        {@const level = scoreLevel(nowScore.total)}
+
+        <!-- 当前钓鱼指数 -->
+        <div class="fa-card fa-card--hero">
+            <div class="fa-section-title">当前钓鱼指数</div>
+            <div class="fa-hero">
+                <div class="fa-gauge">
+                    <svg viewBox="0 0 120 120" width="120" height="120">
+                        <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="11" />
+                        <circle
+                            cx="60"
+                            cy="60"
+                            r="52"
+                            fill="none"
+                            stroke={level.color}
+                            stroke-width="11"
+                            stroke-linecap="round"
+                            stroke-dasharray={`${(nowScore.total / 100) * 326.7} 326.7`}
+                            transform="rotate(-90 60 60)"
+                        />
+                    </svg>
+                    <div class="fa-gauge-center">
+                        <div class="fa-score">{nowScore.total}</div>
+                        <div class="fa-level" style="color: {level.color}">{level.label}</div>
+                    </div>
+                </div>
+                <div class="fa-hero-side">
+                    <div class="fa-now-weather">
+                        <span class="fa-emoji">{weather.emoji}</span>
+                        <span class="fa-now-temp">{tempText(air.data.temperature[nowIdx])}</span>
+                    </div>
+                    <div class="fa-now-desc">{weather.text}</div>
+                    <div class="fa-now-time">
+                        今日最佳：{bestToday ? formatLocalTime(bestToday.ts, offset) : '--'}（{bestToday ? weekdayCN(bestToday.ts, offset) : ''}）
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分项得分 -->
+            <div class="fa-breakdown">
+                <div class="fa-bd-row">
+                    <span class="fa-bd-name">气压趋势</span>
+                    <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.pressure / 25) * 100}%"></div></div>
+                    <span class="fa-bd-val">{nowScore.pressure}/25</span>
+                </div>
+                <div class="fa-bd-row">
+                    <span class="fa-bd-name">天气状况</span>
+                    <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.weather / 20) * 100}%"></div></div>
+                    <span class="fa-bd-val">{nowScore.weather}/20</span>
+                </div>
+                <div class="fa-bd-row">
+                    <span class="fa-bd-name">风力</span>
+                    <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.wind / 15) * 100}%"></div></div>
+                    <span class="fa-bd-val">{nowScore.wind}/15</span>
+                </div>
+                <div class="fa-bd-row">
+                    <span class="fa-bd-name">温度</span>
+                    <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.temp / 15) * 100}%"></div></div>
+                    <span class="fa-bd-val">{nowScore.temp}/15</span>
+                </div>
+                <div class="fa-bd-row">
+                    <span class="fa-bd-name">时段</span>
+                    <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.time / 15) * 100}%"></div></div>
+                    <span class="fa-bd-val">{nowScore.time}/15</span>
+                </div>
+                <div class="fa-bd-row">
+                    <span class="fa-bd-name">月相（{moonPhaseText(air.data.moonPhase[nowIdx])}）</span>
+                    <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.moon / 10) * 100}%"></div></div>
+                    <span class="fa-bd-val">{nowScore.moon}/10</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 当前气象条件 -->
+        <div class="fa-card">
+            <div class="fa-section-title">当前气象条件</div>
+            <div class="fa-grid">
+                <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">气温</span><span class="fa-item-val">{tempText(air.data.temperature[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🤒</span><span class="fa-item-label">体感</span><span class="fa-item-val">{tempText(air.data.feelTemperature[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">风力</span><span class="fa-item-val">{windText(air.data.wind[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">风向</span><span class="fa-item-val">{dir2compass(air.data.windDir[nowIdx])}风</span></div>
+                <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">阵风</span><span class="fa-item-val">{windText(air.data.windGust[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌀</span><span class="fa-item-label">气压</span><span class="fa-item-val">{pressureText(air.data.pressure[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">趋势</span><span class="fa-item-val">{pressureTrend(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">💧</span><span class="fa-item-label">湿度</span><span class="fa-item-val">{humidityText(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">☁️</span><span class="fa-item-label">云量</span><span class="fa-item-val">{cloudText(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌧️</span><span class="fa-item-label">降水</span><span class="fa-item-val">{rainText(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌙</span><span class="fa-item-label">月相</span><span class="fa-item-val">{moonPhaseText(air.data.moonPhase[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">⛰️</span><span class="fa-item-label">海拔</span><span class="fa-item-val">{elevationText()}</span></div>
+            </div>
+        </div>
+
+        <!-- 日出日落 + 黄金时段 -->
+        <div class="fa-card">
+            <div class="fa-section-title">日出日落与黄金时段</div>
+            <div class="fa-sun">
+                <span>🌅 日出 <b>{air.celestial?.sunrise ?? '--'}</b></span>
+                <span>🌇 日落 <b>{air.celestial?.sunset ?? '--'}</b></span>
+            </div>
+            <div class="fa-prime-list">
+                {#each primes as p}
+                    <div class="fa-prime">
+                        <span class="fa-prime-emoji">{p.emoji}</span>
+                        <span class="fa-prime-label">{p.label}</span>
+                        <span class="fa-prime-time">{formatLocalTime(p.start, offset)} – {formatLocalTime(p.end, offset)}</span>
+                        <span class="fa-prime-score">{primeScoreText(p)}</span>
+                    </div>
+                {/each}
+            </div>
+        </div>
+
+        <!-- 未来几天指数 -->
+        <div class="fa-card">
+            <div class="fa-section-title">未来几天钓鱼指数</div>
+            <div class="fa-days">
+                {#each daily.slice(0, 5) as d, di}
+                    {@const dl = scoreLevel(d.best.total)}
+                    <div class="fa-day" class:fa-day--today={di === 0}>
+                        <div class="fa-day-head">
+                            <span class="fa-day-weekday">{di === 0 ? '今天' : weekdayCN(d.timestamp, offset)}</span>
+                            <span class="fa-day-date">{d.day}日</span>
+                            <span class="fa-day-icon">{weatherText(d.icon).emoji}</span>
+                        </div>
+                        <div class="fa-day-temps">
+                            {tempText(d.tempMax)} / {tempText(d.tempMin)}
+                        </div>
+                        <div class="fa-day-score-row">
+                            <div class="fa-day-bar">
+                                <div class="fa-day-fill" style="width: {d.best.total}%; background: {dl.color}"></div>
+                            </div>
+                            <span class="fa-day-score">{d.best.total}</span>
+                            <span class="fa-day-level" style="color: {dl.color}">{dl.label}</span>
+                        </div>
+                        <div class="fa-day-best">最佳时段 {formatLocalTime(d.best.ts, offset)} · 均分 {d.avg}</div>
+                        {#if d.predictability !== null}
+                            <div class="fa-day-pred">可预报性 {d.predictability}%</div>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+        </div>
+
+        <!-- 海浪与海况 -->
+        {#if waves && hasWavesData(waves)}
+            {@const wIdx = closestIndex(waves.data.ts, nowScore.ts)}
+            <div class="fa-card">
+                <div class="fa-section-title">海浪与海况</div>
+                <div class="fa-grid">
+                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">浪高</span><span class="fa-item-val">{wavesText(waves.data.waves[wIdx])}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🔄</span><span class="fa-item-label">周期</span><span class="fa-item-val">{val(waves.data.wavesPeriod[wIdx])} s</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">浪向</span><span class="fa-item-val">{dir2compass(waves.data.wavesDir[wIdx])}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">涌浪1</span><span class="fa-item-val">{wavesSwell1Text(wIdx)}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">海表温度</span><span class="fa-item-val">{sstText()}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">⚡</span><span class="fa-item-label">波功率</span><span class="fa-item-val">{val(waves.data.wavesPower[wIdx])}</span></div>
+                </div>
+            </div>
+        {/if}
+
+        <!-- 天气预警 -->
+        {#if alerts.length > 0}
+            <div class="fa-card">
+                <div class="fa-section-title">⚠️ 天气预警</div>
+                {#each alerts as a}
+                    <div class="fa-alert" class:fa-alert--sev={alertSeverityClass(a.severity)}>
+                        <div class="fa-alert-title">
+                            <b>{alertTypeCN(a.type)}</b>
+                            <span class="fa-alert-sev">{alertSeverityCN(a.severity)}</span>
+                        </div>
+                        <div class="fa-alert-event">{a.event || a.headline || ''}</div>
+                        <div class="fa-alert-time">
+                            {alertTimeText(a)} · 模型：{air.header.model.toUpperCase()}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+
+        <!-- 地图图层快捷切换 -->
+        <div class="fa-card">
+            <div class="fa-section-title">地图图层快捷切换</div>
+            <div class="fa-layers">
+                <button class="fa-layer" on:click={() => setOverlay('wind')}>💨 风</button>
+                <button class="fa-layer" on:click={() => setOverlay('gust')}>💨 阵风</button>
+                <button class="fa-layer" on:click={() => setOverlay('rain')}>🌧️ 雨</button>
+                <button class="fa-layer" on:click={() => setOverlay('temp')}>🌡️ 温度</button>
+                <button class="fa-layer" on:click={() => setOverlay('waves')}>🌊 浪</button>
+                <button class="fa-layer" on:click={() => setOverlay('sst')}>🌡️ 海温</button>
+            </div>
+        </div>
+
+        <div class="fa-footer">
+            数据来源：Windy 免费点预报接口（{air.header.model.toUpperCase()}，更新时间 {updateText()}）。指数仅供参考，请结合当地实况判断。🎣
+        </div>
+    {/if}
 </section>
+
 <script lang="ts">
-    import bcast from "@windy/broadcast";
+    import bcast from '@windy/broadcast';
+    import { getGPSlocation } from '@windy/geolocation';
+    import { map } from '@windy/map';
+    import { setTitle } from '@windy/location';
+    import * as reverse from '@windy/reverseName';
+    import { singleclick } from '@windy/singleclick';
+    import store from '@windy/store';
+    import metrics from '@windy/metrics';
+    import { isValidLatLonObj, normalizeLatLon } from '@windy/utils';
+    import { getCapAlertsSummary, getPointForecastData } from '@windy/fetch';
+
     import { onDestroy, onMount } from 'svelte';
 
     import config from './pluginConfig';
 
-    const { title } = config;
+    import type { LatLon } from '@windy/interfaces.d';
+    import type { Overlays } from '@windy/rootScope.d';
 
+    import type {
+        CapAlertHeadline,
+        DataHash2,
+        WavesDataHash2,
+        WeatherDataPayload2,
+    } from './types';
+    import {
+        closestSegment,
+        computeDaily,
+        computeSegments,
+        dir2compass,
+        formatLocalTime,
+        moonPhaseText,
+        primeWindows,
+        relativeHumidity,
+        scoreLevel,
+        weatherText,
+        weekdayCN,
+    } from './fishingIndex';
+    import type { DayScore, PrimeWindow, SegmentScore } from './fishingIndex';
 
-    export const onopen = (_params: unknown) => {
-        // Your plugin was opened with parameters parsed from URL
-        // or with LatLon object if opened from contextmenu
+    const { title, name } = config;
+    const HOUR = 3600 * 1000;
+    const INCLUDE = { header: true, celestial: true, meteogram: true, summary: true, debug: true } as const;
+    const WAVES_INCLUDE = { header: true, celestial: true, summary: true, debug: true } as const;
+
+    let loc: LatLon | null = null;
+    let reverseName = '';
+    let loading = false;
+    let error = '';
+
+    let selectedModel = 'ecmwf';
+    let air: WeatherDataPayload2<DataHash2> | null = null;
+    let waves: WeatherDataPayload2<WavesDataHash2> | null = null;
+    let alerts: CapAlertHeadline[] = [];
+
+    let segments: SegmentScore[] = [];
+    let daily: DayScore[] = [];
+    let primes: PrimeWindow[] = [];
+    let nowScore: SegmentScore | null = null;
+    let bestToday: SegmentScore | null = null;
+
+    let marker: L.Marker | null = null;
+    let scListenerId = 0;
+    let requestSeq = 0;
+
+    const wavesModelOf = (model: string): string => {
+        if (model === 'gfs') return 'gfsWaves';
+        if (model === 'icon') return 'iconEuWaves';
+        return 'ecmwfWaves';
+    };
+
+    const hideMarker = () => {
+        if (marker) {
+            marker.remove();
+            marker = null;
+        }
+    };
+
+    const showMarker = (lat: number, lon: number) => {
+        hideMarker();
+        const icon = new L.DivIcon({
+            className: 'icon-dot fa-marker',
+            html: '<div class="pulsating-icon repeat"></div>',
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+        });
+        marker = L.marker([lat, lon], { draggable: true, icon }).addTo(map);
+        marker.on('dragend', (ev: L.LeafletMouseEvent) => {
+            const { lat: la, lng } = ev.target.getLatLng();
+            setLocation({ lat: la, lon: lng });
+        });
+    };
+
+    /** 设置钓点并加载数据 */
+    const setLocation = (latLon: LatLon) => {
+        loc = { lat: latLon.lat, lon: latLon.lon };
+        hideMarker();
+        showMarker(latLon.lat, latLon.lon);
+        reverse
+            .get(loc)
+            .then(({ name: n }) => {
+                reverseName = n;
+                setTitle(`🎣 钓鱼助手 · ${n}`);
+            })
+            .catch(() => {
+                reverseName = '';
+            });
+        loadData(latLon.lat, latLon.lon);
+    };
+
+    /** 加载 Windy 点预报数据（大气 + 海浪 + 预警） */
+    const loadData = async (lat: number, lon: number) => {
+        const mySeq = ++requestSeq;
+        loading = true;
+        error = '';
+        try {
+            const [airRes, wavesRes, alertsRes] = await Promise.allSettled([
+                getPointForecastData(selectedModel, { lat, lon, days: 5, step: 3, source: 'detail' }, INCLUDE),
+                getPointForecastData<WavesDataHash2>(wavesModelOf(selectedModel), { lat, lon, days: 3, step: 3, source: 'detail' }, WAVES_INCLUDE),
+                getCapAlertsSummary({ lat, lon }, 'detail'),
+            ]);
+
+            // 丢弃过期请求的结果
+            if (mySeq !== requestSeq) return;
+
+            if (airRes.status === 'fulfilled') {
+                const payload = airRes.value.data;
+                if (!payload || !payload.data) {
+                    throw new Error('未能获取该地点的预报数据（可能不在所选模型覆盖范围）');
+                }
+                air = payload;
+
+                // 计算各时段钓鱼指数
+                const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0;
+                segments = computeSegments(air.data, air.celestial);
+                primes = primeWindows(air.celestial);
+                daily = computeDaily(air.data, segments, air.summary, air.celestial);
+                nowScore = closestSegment(segments, Date.now());
+
+                // 今日最佳时段
+                const todayTs = Date.now() + offset * HOUR;
+                const todayKey =
+                    new Date(todayTs).getUTCFullYear() * 10000 +
+                    (new Date(todayTs).getUTCMonth() + 1) * 100 +
+                    new Date(todayTs).getUTCDate();
+                const todaySegs = segments.filter(seg => {
+                    const d = new Date(seg.ts + offset * HOUR);
+                    return (
+                        d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate() ===
+                        todayKey
+                    );
+                });
+                bestToday = todaySegs.length
+                    ? todaySegs.reduce((a, b) => (b.total > a.total ? b : a), todaySegs[0])
+                    : nowScore;
+            } else {
+                throw new Error((airRes.reason as Error)?.message || '获取气象数据失败');
+            }
+
+            if (wavesRes.status === 'fulfilled' && wavesRes.value.data?.data) {
+                waves = wavesRes.value.data;
+            } else {
+                waves = null;
+            }
+
+            if (alertsRes.status === 'fulfilled' && alertsRes.value.data) {
+                alerts = alertsRes.value.data;
+            } else {
+                alerts = [];
+            }
+        } catch (e) {
+            if (mySeq !== requestSeq) return;
+            console.error('Fishing assistant error:', e);
+            error = (e as Error)?.message || String(e);
+        } finally {
+            if (mySeq === requestSeq) {
+                loading = false;
+            }
+        }
+    };
+
+    /** 手动刷新（切换模型后） */
+    const refresh = () => {
+        if (loc) loadData(loc.lat, loc.lon);
+    };
+
+    /** 定位到我的位置 */
+    const locateMe = () => {
+        getGPSlocation()
+            .then(geo => {
+                const zoom = Math.max(8, map.getZoom());
+                map.setView([geo.lat, geo.lon], zoom, { animate: true });
+                setLocation({ lat: geo.lat, lon: geo.lon });
+            })
+            .catch(e => {
+                console.error(e);
+                error = '无法获取 GPS 位置';
+            });
+    };
+
+    /** 快捷切换地图图层 */
+    const setOverlay = (ovl: string) => {
+        store.set('overlay', ovl as Overlays);
+    };
+
+    /** 工具函数（用于模板展示） */
+    const val = (x: number | null | undefined): string =>
+        x === null || x === undefined || Number.isNaN(x) ? '--' : String(Math.round(x * 10) / 10);
+
+    const tempText = (x: number | null | undefined): string =>
+        x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.temp.convertValue(x);
+
+    const windText = (x: number | null | undefined): string =>
+        x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.wind.convertValue(x);
+
+    const pressureText = (x: number | null | undefined): string =>
+        x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.pressure.convertValue(x);
+
+    const wavesText = (x: number | null | undefined): string =>
+        x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.waves.convertValue(x);
+
+    const pressureTrend = (idx: number): string => {
+        if (!air) return '--';
+        const p = air.data.pressure[idx];
+        const pp = idx > 0 ? air.data.pressure[idx - 1] : null;
+        if (p === null || p === undefined || Number.isNaN(p)) return '--';
+        if (pp === null || pp === undefined || Number.isNaN(pp)) return '--';
+        const d = (p - pp) / 100;
+        if (Math.abs(d) < 0.3) return '稳定';
+        return d > 0 ? `↑ +${d.toFixed(1)} hPa` : `↓ ${d.toFixed(1)} hPa`;
+    };
+
+    const humidityText = (idx: number): string => {
+        if (!air?.meteogram) return '--';
+        const rh = relativeHumidity(air.data.temperature[idx], air.meteogram.dewPoint[idx]);
+        return rh === null ? '--' : `${Math.round(rh)}%`;
+    };
+
+    const cloudText = (idx: number): string => {
+        if (!air?.meteogram) return '--';
+        const c = air.meteogram['cloud-surface']?.[idx];
+        return c === null || c === undefined || Number.isNaN(c) ? '--' : `${Math.round(c)}%`;
+    };
+
+    const rainText = (idx: number): string => {
+        if (!air) return '--';
+        const p = air.data.precipAmount[idx];
+        return p === null || p === undefined || Number.isNaN(p) ? '0 mm' : metrics.rain.convertValue(p);
+    };
+
+    const elevationText = (): string => {
+        if (!air) return '--';
+        return `${Math.round(air.header.elevation)} m`;
+    };
+
+    const primeScoreText = (p: PrimeWindow): string => {
+        if (!segments.length) return '';
+        const inWin = segments.filter(s => s.ts >= p.start && s.ts <= p.end);
+        if (!inWin.length) return '';
+        const best = inWin.reduce((a, b) => (b.total > a.total ? b : a), inWin[0]);
+        return `预计指数 ${best.total}（${scoreLevel(best.total).label}）`;
+    };
+
+    const hasWavesData = (w: WeatherDataPayload2<WavesDataHash2>): boolean =>
+        !!w.data && Array.isArray(w.data.waves) && w.data.waves.some(v => v !== null && !Number.isNaN(v));
+
+    const closestIndex = (tsArr: number[], ts: number): number => {
+        let best = 0;
+        let bestDiff = Infinity;
+        tsArr.forEach((t, i) => {
+            const d = Math.abs(t - ts);
+            if (d < bestDiff) {
+                bestDiff = d;
+                best = i;
+            }
+        });
+        return best;
+    };
+
+    const wavesSwell1Text = (idx: number): string => {
+        if (!waves) return '--';
+        const h = waves.data.swell1?.[idx];
+        if (h === null || h === undefined || Number.isNaN(h)) return '--';
+        const per = waves.data.swell1Period?.[idx];
+        const dir = waves.data.swell1Dir?.[idx];
+        return `${wavesText(h)}${per != null && !Number.isNaN(per) ? ` / ${Math.round(per)}s` : ''}${dir != null && !Number.isNaN(dir) ? ` ${dir2compass(dir)}` : ''}`;
+    };
+
+    const sstText = (): string => {
+        if (air?.header.sst !== undefined && air.header.sst !== null && !Number.isNaN(air.header.sst)) {
+            return tempText(air.header.sst);
+        }
+        return '--';
+    };
+
+    const updateText = (): string => {
+        if (!air?.header.update) return '--';
+        const d = new Date(air.header.update);
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(
+            d.getUTCDate(),
+        ).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(
+            d.getUTCMinutes(),
+        ).padStart(2, '0')} UTC`;
+    };
+
+    const alertTypeCN = (type: string): string => {
+        const map: Record<string, string> = {
+            Wind: '大风',
+            Rain: '降雨',
+            Thunderstorm: '雷暴',
+            Snow: '降雪',
+            Fog: '雾',
+            Temperature: '温度',
+            Heat: '高温',
+            Cold: '低温',
+            Flood: '洪水',
+            CoastalEvent: '海岸事件',
+            Avalanche: '雪崩',
+            Fire: '火险',
+        };
+        return map[type] || type;
+    };
+
+    const alertSeverityCN = (sev: string): string => {
+        const map: Record<string, string> = {
+            Minor: '轻度',
+            Moderate: '中度',
+            Severe: '严重',
+            Extreme: '极端',
+            Unknown: '未知',
+        };
+        return map[sev] || sev;
+    };
+
+    const alertSeverityClass = (sev: string): boolean =>
+        sev === 'Severe' || sev === 'Extreme';
+
+    const alertTimeText = (a: CapAlertHeadline): string => {
+        if (!air) return '';
+        const offset = air.celestial?.TZoffset ?? 0;
+        return `${formatLocalTime(a.start, offset)} – ${formatLocalTime(a.end, offset)}`;
+    };
+
+    /** 插件打开时：优先使用上下文菜单传入的地点，否则使用地图中心 */
+    export const onopen = (params?: unknown) => {
+        const latLon = params as LatLon | undefined;
+        if (isValidLatLonObj(latLon)) {
+            const zoom = Math.max(8, map.getZoom());
+            map.setView([latLon.lat, latLon.lon], zoom, { animate: true });
+            setLocation({ lat: latLon.lat, lon: latLon.lon });
+        } else {
+            const c = map.getCenter();
+            setLocation({ lat: c.lat, lon: c.lng });
+        }
     };
 
     onMount(() => {
-        // Your plugin was mounted
+        scListenerId = singleclick.on(name, (ev: LatLon) => {
+            setLocation(ev);
+        });
     });
 
     onDestroy(() => {
-        // Your plugin was destroyed
+        singleclick.off(scListenerId);
+        hideMarker();
     });
 </script>
 
 <style lang="less">
-    // Put any LESS of CSS styles here
+    .fa-root {
+        padding-bottom: 30px;
+    }
+
+    .fa-toolbar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+
+        .fa-model {
+            font-size: 12px;
+            color: #9aa7b4;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            select {
+                background: #1e2430;
+                color: #e8ecf0;
+                border: 1px solid #2f3a48;
+                border-radius: 6px;
+                padding: 4px 8px;
+                font-size: 13px;
+                outline: none;
+            }
+        }
+
+        .fa-locate {
+            margin: 0;
+        }
+
+        .fa-hint {
+            font-size: 11px;
+            color: #7f8b99;
+            margin-left: auto;
+        }
+    }
+
+    .fa-loading {
+        padding: 24px;
+        text-align: center;
+        color: #9aa7b4;
+        font-size: 14px;
+    }
+
+    .fa-error {
+        padding: 8px 12px;
+    }
+
+    .fa-card {
+        background: #171d27;
+        border: 1px solid #232b38;
+        border-radius: 10px;
+        padding: 14px 14px 12px;
+        margin-bottom: 14px;
+
+        .fa-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #aeb9c4;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+    }
+
+    .fa-card--hero {
+        background: linear-gradient(135deg, #16222e 0%, #1b2a3a 100%);
+        border-color: #2a3b4d;
+    }
+
+    .fa-hero {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
+
+    .fa-gauge {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        flex-shrink: 0;
+
+        .fa-gauge-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fa-score {
+            font-size: 34px;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
+        }
+
+        .fa-level {
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+    }
+
+    .fa-hero-side {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .fa-now-weather {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            .fa-emoji {
+                font-size: 28px;
+            }
+
+            .fa-now-temp {
+                font-size: 26px;
+                font-weight: 600;
+                color: #fff;
+            }
+        }
+
+        .fa-now-desc {
+            font-size: 14px;
+            color: #aeb9c4;
+        }
+
+        .fa-now-time {
+            font-size: 12px;
+            color: #7f8b99;
+        }
+    }
+
+    .fa-breakdown {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .fa-bd-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+
+            .fa-bd-name {
+                width: 96px;
+                color: #9aa7b4;
+                flex-shrink: 0;
+                text-align: right;
+            }
+
+            .fa-bd-bar {
+                flex: 1;
+                height: 6px;
+                background: #2a3442;
+                border-radius: 3px;
+                overflow: hidden;
+
+                .fa-bd-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #2ecc71, #27ae60);
+                    border-radius: 3px;
+                    transition: width 0.4s ease;
+                }
+            }
+
+            .fa-bd-val {
+                width: 40px;
+                color: #cfd8e0;
+                flex-shrink: 0;
+                text-align: right;
+                font-variant-numeric: tabular-nums;
+            }
+        }
+    }
+
+    .fa-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+
+        .fa-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            background: #12161d;
+            border-radius: 8px;
+            padding: 8px 4px;
+
+            .fa-item-icon {
+                font-size: 16px;
+            }
+
+            .fa-item-label {
+                font-size: 11px;
+                color: #7f8b99;
+            }
+
+            .fa-item-val {
+                font-size: 13px;
+                font-weight: 600;
+                color: #e8ecf0;
+                text-align: center;
+                font-variant-numeric: tabular-nums;
+            }
+        }
+    }
+
+    .fa-sun {
+        display: flex;
+        justify-content: space-around;
+        font-size: 14px;
+        color: #cfd8e0;
+        margin-bottom: 12px;
+
+        b {
+            color: #f7c948;
+        }
+    }
+
+    .fa-prime-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        .fa-prime {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #12161d;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+
+            .fa-prime-emoji {
+                font-size: 18px;
+            }
+
+            .fa-prime-label {
+                color: #cfd8e0;
+                font-weight: 600;
+            }
+
+            .fa-prime-time {
+                color: #f7c948;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .fa-prime-score {
+                margin-left: auto;
+                color: #9aa7b4;
+                font-size: 12px;
+            }
+        }
+    }
+
+    .fa-days {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        .fa-day {
+            background: #12161d;
+            border-radius: 8px;
+            padding: 10px 12px;
+
+            &--today {
+                border: 1px solid #2a3b4d;
+            }
+
+            .fa-day-head {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                .fa-day-weekday {
+                    font-weight: 700;
+                    color: #fff;
+                    font-size: 14px;
+                }
+
+                .fa-day-date {
+                    color: #7f8b99;
+                    font-size: 12px;
+                }
+
+                .fa-day-icon {
+                    margin-left: auto;
+                    font-size: 18px;
+                }
+            }
+
+            .fa-day-temps {
+                font-size: 12px;
+                color: #9aa7b4;
+                margin: 4px 0 8px;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .fa-day-score-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                .fa-day-bar {
+                    flex: 1;
+                    height: 8px;
+                    background: #232b38;
+                    border-radius: 4px;
+                    overflow: hidden;
+
+                    .fa-day-fill {
+                        height: 100%;
+                        border-radius: 4px;
+                        transition: width 0.4s ease;
+                    }
+                }
+
+                .fa-day-score {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #fff;
+                    width: 26px;
+                    text-align: right;
+                    font-variant-numeric: tabular-nums;
+                }
+
+                .fa-day-level {
+                    font-size: 12px;
+                    font-weight: 600;
+                    width: 32px;
+                }
+            }
+
+            .fa-day-best {
+                font-size: 11px;
+                color: #7f8b99;
+                margin-top: 4px;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .fa-day-pred {
+                font-size: 11px;
+                color: #5c6b7a;
+                margin-top: 2px;
+            }
+        }
+    }
+
+    .fa-alert {
+        background: #12161d;
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        border-left: 3px solid #f1c40f;
+
+        &--sev {
+            border-left-color: #e74c3c;
+        }
+
+        .fa-alert-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #e8ecf0;
+
+            .fa-alert-sev {
+                font-size: 11px;
+                color: #f1c40f;
+                border: 1px solid #f1c40f;
+                border-radius: 4px;
+                padding: 0 4px;
+
+                .fa-alert--sev & {
+                    color: #e74c3c;
+                    border-color: #e74c3c;
+                }
+            }
+        }
+
+        .fa-alert-event {
+            font-size: 12px;
+            color: #9aa7b4;
+            margin-top: 2px;
+        }
+
+        .fa-alert-time {
+            font-size: 11px;
+            color: #7f8b99;
+            margin-top: 2px;
+        }
+    }
+
+    .fa-layers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+
+        .fa-layer {
+            background: #12161d;
+            color: #cfd8e0;
+            border: 1px solid #2a3442;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+
+            &:hover {
+                border-color: #3d87ff;
+                color: #fff;
+            }
+        }
+    }
+
+    .fa-footer {
+        font-size: 11px;
+        color: #5c6b7a;
+        line-height: 1.6;
+        padding: 4px 4px 10px;
+    }
+
+    :global(.fa-marker) {
+        z-index: 1000;
+        cursor: move;
+    }
 </style>
 
