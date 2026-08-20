@@ -320,35 +320,72 @@ export const levelLabel = (level: number, lang: Lang = currentLang): string => {
     return labels[lang][level] ?? '—';
 };
 
-/** 预警类型（英文直接返回原始类型，中文翻译） */
+/**
+ * 预警类型 -> 可读文本。
+ * Windy 的 CapAlertType 是单字母代码（T=雷暴、H=高温、W=大风…），
+ * 这里同时兼容部分来源直接给出的完整英文名。
+ */
 export const alertTypeText = (type: string, lang: Lang = currentLang): string => {
-    if (lang === 'en') return type;
-    const map: Record<string, string> = {
-        Wind: '大风',
-        Rain: '降雨',
-        Thunderstorm: '雷暴',
-        Snow: '降雪',
-        Fog: '雾',
-        Temperature: '温度',
-        Heat: '高温',
-        Cold: '低温',
-        Flood: '洪水',
-        CoastalEvent: '海岸事件',
-        Avalanche: '雪崩',
-        Fire: '火险',
+    const codeMap: Record<string, { en: string; zh: string }> = {
+        T: { en: 'Thunderstorm', zh: '雷暴' },
+        R: { en: 'Rain', zh: '降雨' },
+        H: { en: 'Heat', zh: '高温' },
+        W: { en: 'Wind', zh: '大风' },
+        F: { en: 'Flood', zh: '洪水' },
+        L: { en: 'Low temperature', zh: '低温' },
+        C: { en: 'Coastal event', zh: '海岸事件' },
+        I: { en: 'Fire', zh: '火险' },
+        G: { en: 'Fog', zh: '雾' },
+        N: { en: 'Tornado', zh: '龙卷风' },
+        Q: { en: 'Air quality', zh: '空气质量' },
+        S: { en: 'Snow / ice', zh: '降雪' },
+        A: { en: 'Avalanche', zh: '雪崩' },
     };
-    return map[type] || type;
+    const code = codeMap[type];
+    if (code) return lang === 'en' ? code.en : code.zh;
+
+    // 兼容完整英文名（例如 Thunderstorm、Heat、Wind…）
+    const fullMap: Record<string, { en: string; zh: string }> = {
+        Wind: { en: 'Wind', zh: '大风' },
+        Rain: { en: 'Rain', zh: '降雨' },
+        Thunderstorm: { en: 'Thunderstorm', zh: '雷暴' },
+        Snow: { en: 'Snow / ice', zh: '降雪' },
+        Fog: { en: 'Fog', zh: '雾' },
+        Temperature: { en: 'Temperature', zh: '温度' },
+        Heat: { en: 'Heat', zh: '高温' },
+        Cold: { en: 'Low temperature', zh: '低温' },
+        Flood: { en: 'Flood', zh: '洪水' },
+        CoastalEvent: { en: 'Coastal event', zh: '海岸事件' },
+        Avalanche: { en: 'Avalanche', zh: '雪崩' },
+        Fire: { en: 'Fire', zh: '火险' },
+        Tornado: { en: 'Tornado', zh: '龙卷风' },
+    };
+    const full = fullMap[type];
+    return full ? (lang === 'en' ? full.en : full.zh) : type;
 };
 
-/** 预警级别（英文直接返回原始级别，中文翻译） */
+/**
+ * 预警级别 -> 可读文本。
+ * Windy 的 CapAlertSeverity 是单字母代码（M=中度、S=严重、E=极端、A=未知）。
+ */
 export const alertSeverityText = (sev: string, lang: Lang = currentLang): string => {
-    if (lang === 'en') return sev;
-    const map: Record<string, string> = {
-        Minor: '轻度',
-        Moderate: '中度',
-        Severe: '严重',
-        Extreme: '极端',
-        Unknown: '未知',
+    const codeMap: Record<string, { en: string; zh: string }> = {
+        M: { en: 'Moderate', zh: '中度' },
+        S: { en: 'Severe', zh: '严重' },
+        E: { en: 'Extreme', zh: '极端' },
+        A: { en: 'Unknown', zh: '未知' },
     };
-    return map[sev] || sev;
+    const code = codeMap[sev];
+    if (code) return lang === 'en' ? code.en : code.zh;
+
+    // 兼容完整英文名（例如 Moderate、Severe、Extreme、Minor…）
+    const fullMap: Record<string, { en: string; zh: string }> = {
+        Minor: { en: 'Minor', zh: '轻度' },
+        Moderate: { en: 'Moderate', zh: '中度' },
+        Severe: { en: 'Severe', zh: '严重' },
+        Extreme: { en: 'Extreme', zh: '极端' },
+        Unknown: { en: 'Unknown', zh: '未知' },
+    };
+    const full = fullMap[sev];
+    return full ? (lang === 'en' ? full.en : full.zh) : sev;
 };

@@ -599,7 +599,7 @@
     };
 
     const alertSeverityClass = (sev: string): boolean =>
-        sev === 'Severe' || sev === 'Extreme';
+        sev === 'S' || sev === 'E' || sev === 'Severe' || sev === 'Extreme';
 
     const alertTimeText = (a: CapAlertHeadline): string => {
         if (!air) return '';
