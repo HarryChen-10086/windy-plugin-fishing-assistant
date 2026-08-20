@@ -34,6 +34,7 @@
             🌐 {t('switchLang')}
         </button>
         <div class="fa-hint">{t('clickHint')}</div>
+        <div class="fa-hint">{t('timeHint')}</div>
     </div>
 
     {#if loading}
@@ -73,7 +74,13 @@
 
         <!-- 当前钓鱼指数 -->
         <div class="fa-card fa-card--hero">
-            <div class="fa-section-title">{t('currentIndex')}</div>
+            <div class="fa-section-title">
+                {t('currentIndex')}
+                <span class="fa-time-chip">🕐 {formatLocalTime(nowScore.ts, offset)}</span>
+                {#if !isNowTime}
+                    <span class="fa-fcst-badge">{t('forecastTime')}</span>
+                {/if}
+            </div>
             <div class="fa-hero">
                 <div class="fa-gauge">
                     <svg viewBox="0 0 120 120" width="120" height="120">
@@ -407,6 +414,13 @@
     let nowScore: SegmentScore | null = null;
     let bestToday: SegmentScore | null = null;
 
+    /** Windy 时间条当前时刻（毫秒），用于计算“当前”钓鱼指数 */
+    let selectedTime = Date.now();
+    /** 所选时刻是否即“现在”（界面徽章用） */
+    let isNowTime = true;
+    /** store.on('timestamp') 订阅 id */
+    let timeListenerId = 0;
+
     /** 当前存在的恶劣条件（用于顶部警示） */
     interface CurrentSevere {
         kind: SevereKind;
@@ -464,6 +478,44 @@
         loadData(latLon.lat, latLon.lon);
     };
 
+    /**
+     * 根据 Windy 时间条当前时刻重算“当前”钓鱼指数、
+     * 所选时刻所在“日”的最佳时段以及恶劣天气警示。
+     */
+    const applySelectedTime = () => {
+        if (!air || segments.length === 0) return;
+        nowScore = closestSegment(segments, selectedTime);
+        isNowTime = !!nowScore && closestSegment(segments, Date.now())?.ts === nowScore.ts;
+
+        // 当前恶劣条件（用于顶部警示）
+        const nowSegIdx = nowScore ? segments.indexOf(nowScore) : -1;
+        currentSevere =
+            nowSegIdx >= 0
+                ? segments[nowSegIdx].severeKinds.map(kind => ({
+                      kind,
+                      end: severeEndTs(segments, kind, nowSegIdx),
+                  }))
+                : [];
+
+        // 所选时刻所在“日”的最佳时段
+        const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0;
+        const dayTs = selectedTime + offset * HOUR;
+        const dayKey =
+            new Date(dayTs).getUTCFullYear() * 10000 +
+            (new Date(dayTs).getUTCMonth() + 1) * 100 +
+            new Date(dayTs).getUTCDate();
+        const daySegs = segments.filter(seg => {
+            const d = new Date(seg.ts + offset * HOUR);
+            return (
+                d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate() ===
+                dayKey
+            );
+        });
+        bestToday = daySegs.length
+            ? daySegs.reduce((a, b) => (b.total > a.total ? b : a), daySegs[0])
+            : nowScore;
+    };
+
     /** 加载 Windy 点预报数据（大气 + 海浪 + 预警） */
     const loadData = async (lat: number, lon: number) => {
         const mySeq = ++requestSeq;
@@ -493,39 +545,11 @@
                 }
                 air = payload;
 
-                // 计算各时段钓鱼指数（含恶劣条件安全扣分）
-                const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0;
+                // 计算各时段钓鱼指数（含恶劣条件安全扣分），并按时间条时刻定位“当前”指数
                 segments = computeSegments(air.data, air.celestial, waves?.data ?? null);
                 primes = primeWindows(air.celestial);
                 daily = computeDaily(air.data, segments, air.summary, air.celestial);
-                nowScore = closestSegment(segments, Date.now());
-
-                // 当前恶劣条件（用于顶部警示）
-                const nowSegIdx = nowScore ? segments.indexOf(nowScore) : -1;
-                currentSevere =
-                    nowSegIdx >= 0
-                        ? segments[nowSegIdx].severeKinds.map(kind => ({
-                              kind,
-                              end: severeEndTs(segments, kind, nowSegIdx),
-                          }))
-                        : [];
-
-                // 今日最佳时段
-                const todayTs = Date.now() + offset * HOUR;
-                const todayKey =
-                    new Date(todayTs).getUTCFullYear() * 10000 +
-                    (new Date(todayTs).getUTCMonth() + 1) * 100 +
-                    new Date(todayTs).getUTCDate();
-                const todaySegs = segments.filter(seg => {
-                    const d = new Date(seg.ts + offset * HOUR);
-                    return (
-                        d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate() ===
-                        todayKey
-                    );
-                });
-                bestToday = todaySegs.length
-                    ? todaySegs.reduce((a, b) => (b.total > a.total ? b : a), todaySegs[0])
-                    : nowScore;
+                applySelectedTime();
             } else {
                 throw new Error((airRes.reason as Error)?.message || '获取气象数据失败');
             }
@@ -689,10 +713,25 @@
         scListenerId = singleclick.on(name, (ev: LatLon) => {
             setLocation(ev);
         });
+
+        // 跟随 Windy 时间条：初始取时间条当前时刻，之后监听变化实时重算
+        try {
+            const ts = store.get('timestamp');
+            if (typeof ts === 'number' && !Number.isNaN(ts)) {
+                selectedTime = ts;
+            }
+        } catch {
+            /* store 未就绪时忽略 */
+        }
+        timeListenerId = store.on('timestamp', (ts: number) => {
+            selectedTime = ts;
+            applySelectedTime();
+        });
     });
 
     onDestroy(() => {
         singleclick.off(scListenerId);
+        store.off(timeListenerId);
         hideMarker();
     });
 </script>
@@ -833,6 +872,32 @@
             color: #aeb9c4;
             letter-spacing: 0.5px;
             margin-bottom: 10px;
+
+            .fa-time-chip {
+                display: inline-block;
+                margin-left: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                color: #7ec8ff;
+                background: rgba(62, 135, 255, 0.14);
+                border: 1px solid rgba(62, 135, 255, 0.35);
+                border-radius: 999px;
+                padding: 1px 8px;
+                vertical-align: middle;
+            }
+
+            .fa-fcst-badge {
+                display: inline-block;
+                margin-left: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                color: #f1c40f;
+                background: rgba(241, 196, 15, 0.12);
+                border: 1px solid rgba(241, 196, 15, 0.35);
+                border-radius: 999px;
+                padding: 1px 8px;
+                vertical-align: middle;
+            }
         }
     }
 
