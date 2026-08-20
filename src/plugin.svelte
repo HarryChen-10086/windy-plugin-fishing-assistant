@@ -15,22 +15,29 @@
         {/if}
     </div>
 
-    <!-- 顶部设置：模型选择 + 定位 -->
+    <!-- 顶部设置：语言/模型选择 + 定位 -->
     <div class="fa-toolbar">
         <label class="fa-model">
-            模型
+            {t('model')}
             <select bind:value={selectedModel} on:change={() => refresh()}>
                 <option value="ecmwf">ECMWF</option>
                 <option value="gfs">GFS</option>
                 <option value="icon">ICON</option>
             </select>
         </label>
-        <button class="button button--variant-orange fa-locate" on:click={locateMe}>📍 定位到我</button>
-        <div class="fa-hint">点击地图任意位置可更换钓点 🗺️</div>
+        <button class="button button--variant-orange fa-locate" on:click={locateMe}>{t('locateMe')}</button>
+        <button
+            class="fa-lang"
+            on:click={toggleLang}
+            title="Switch language / 切换语言"
+        >
+            🌐 {t('switchLang')}
+        </button>
+        <div class="fa-hint">{t('clickHint')}</div>
     </div>
 
     {#if loading}
-        <div class="fa-loading">⏳ 正在获取 Windy 气象数据…</div>
+        <div class="fa-loading">{t('loading')}</div>
     {/if}
 
     {#if error}
@@ -40,12 +47,12 @@
     {#if air && nowScore}
         {@const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0}
         {@const nowIdx = Math.max(0, air.data.ts.indexOf(nowScore.ts))}
-        {@const weather = weatherText(nowScore.icon)}
+        {@const weather = weatherText(nowScore.icon, lang)}
         {@const level = scoreLevel(nowScore.total)}
 
         <!-- 当前钓鱼指数 -->
         <div class="fa-card fa-card--hero">
-            <div class="fa-section-title">当前钓鱼指数</div>
+            <div class="fa-section-title">{t('currentIndex')}</div>
             <div class="fa-hero">
                 <div class="fa-gauge">
                     <svg viewBox="0 0 120 120" width="120" height="120">
@@ -64,7 +71,7 @@
                     </svg>
                     <div class="fa-gauge-center">
                         <div class="fa-score">{nowScore.total}</div>
-                        <div class="fa-level" style="color: {level.color}">{level.label}</div>
+                        <div class="fa-level" style="color: {level.color}">{levelLabel(level.level, lang)}</div>
                     </div>
                 </div>
                 <div class="fa-hero-side">
@@ -74,7 +81,10 @@
                     </div>
                     <div class="fa-now-desc">{weather.text}</div>
                     <div class="fa-now-time">
-                        今日最佳：{bestToday ? formatLocalTime(bestToday.ts, offset) : '--'}（{bestToday ? weekdayCN(bestToday.ts, offset) : ''}）
+                        {t('todayBest', {
+                            time: bestToday ? formatLocalTime(bestToday.ts, offset) : '--',
+                            weekday: bestToday ? weekdayName(bestToday.ts, offset, lang) : '',
+                        })}
                     </div>
                 </div>
             </div>
@@ -82,32 +92,32 @@
             <!-- 分项得分 -->
             <div class="fa-breakdown">
                 <div class="fa-bd-row">
-                    <span class="fa-bd-name">气压趋势</span>
+                    <span class="fa-bd-name">{t('scorePressure')}</span>
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.pressure / 25) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.pressure}/25</span>
                 </div>
                 <div class="fa-bd-row">
-                    <span class="fa-bd-name">天气状况</span>
+                    <span class="fa-bd-name">{t('scoreWeather')}</span>
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.weather / 20) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.weather}/20</span>
                 </div>
                 <div class="fa-bd-row">
-                    <span class="fa-bd-name">风力</span>
+                    <span class="fa-bd-name">{t('scoreWind')}</span>
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.wind / 15) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.wind}/15</span>
                 </div>
                 <div class="fa-bd-row">
-                    <span class="fa-bd-name">温度</span>
+                    <span class="fa-bd-name">{t('scoreTemp')}</span>
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.temp / 15) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.temp}/15</span>
                 </div>
                 <div class="fa-bd-row">
-                    <span class="fa-bd-name">时段</span>
+                    <span class="fa-bd-name">{t('scoreTime')}</span>
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.time / 15) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.time}/15</span>
                 </div>
                 <div class="fa-bd-row">
-                    <span class="fa-bd-name">月相（{moonPhaseText(air.data.moonPhase[nowIdx])}）</span>
+                    <span class="fa-bd-name">{t('scoreMoon')}（{moonPhaseText(air.data.moonPhase[nowIdx], lang)}）</span>
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.moon / 10) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.moon}/10</span>
                 </div>
@@ -116,35 +126,35 @@
 
         <!-- 当前气象条件 -->
         <div class="fa-card">
-            <div class="fa-section-title">当前气象条件</div>
+            <div class="fa-section-title">{t('currentConditions')}</div>
             <div class="fa-grid">
-                <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">气温</span><span class="fa-item-val">{tempText(air.data.temperature[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">🤒</span><span class="fa-item-label">体感</span><span class="fa-item-val">{tempText(air.data.feelTemperature[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">风力</span><span class="fa-item-val">{windText(air.data.wind[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">风向</span><span class="fa-item-val">{dir2compass(air.data.windDir[nowIdx])}风</span></div>
-                <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">阵风</span><span class="fa-item-val">{windText(air.data.windGust[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">🌀</span><span class="fa-item-label">气压</span><span class="fa-item-val">{pressureText(air.data.pressure[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">趋势</span><span class="fa-item-val">{pressureTrend(nowIdx)}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">💧</span><span class="fa-item-label">湿度</span><span class="fa-item-val">{humidityText(nowIdx)}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">☁️</span><span class="fa-item-label">云量</span><span class="fa-item-val">{cloudText(nowIdx)}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">🌧️</span><span class="fa-item-label">降水</span><span class="fa-item-val">{rainText(nowIdx)}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">🌙</span><span class="fa-item-label">月相</span><span class="fa-item-val">{moonPhaseText(air.data.moonPhase[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">⛰️</span><span class="fa-item-label">海拔</span><span class="fa-item-val">{elevationText()}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">{t('lblTemp')}</span><span class="fa-item-val">{tempText(air.data.temperature[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🤒</span><span class="fa-item-label">{t('lblFeels')}</span><span class="fa-item-val">{tempText(air.data.feelTemperature[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">{t('lblWind')}</span><span class="fa-item-val">{windText(air.data.wind[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">{t('lblDir')}</span><span class="fa-item-val">{dir2compass(air.data.windDir[nowIdx], lang)}{t('windSuffix')}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">{t('lblGust')}</span><span class="fa-item-val">{windText(air.data.windGust[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌀</span><span class="fa-item-label">{t('lblPressure')}</span><span class="fa-item-val">{pressureText(air.data.pressure[nowIdx])}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">{t('lblTrend')}</span><span class="fa-item-val">{pressureTrend(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">💧</span><span class="fa-item-label">{t('lblHumidity')}</span><span class="fa-item-val">{humidityText(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">☁️</span><span class="fa-item-label">{t('lblClouds')}</span><span class="fa-item-val">{cloudText(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌧️</span><span class="fa-item-label">{t('lblPrecip')}</span><span class="fa-item-val">{rainText(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌙</span><span class="fa-item-label">{t('lblMoon')}</span><span class="fa-item-val">{moonPhaseText(air.data.moonPhase[nowIdx], lang)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">⛰️</span><span class="fa-item-label">{t('lblElevation')}</span><span class="fa-item-val">{elevationText()}</span></div>
             </div>
         </div>
 
         <!-- 日出日落 + 黄金时段 -->
         <div class="fa-card">
-            <div class="fa-section-title">日出日落与黄金时段</div>
+            <div class="fa-section-title">{t('sunTitle')}</div>
             <div class="fa-sun">
-                <span>🌅 日出 <b>{air.celestial?.sunrise ?? '--'}</b></span>
-                <span>🌇 日落 <b>{air.celestial?.sunset ?? '--'}</b></span>
+                <span>🌅 {t('sunrise')} <b>{air.celestial?.sunrise ?? '--'}</b></span>
+                <span>🌇 {t('sunset')} <b>{air.celestial?.sunset ?? '--'}</b></span>
             </div>
             <div class="fa-prime-list">
                 {#each primes as p}
                     <div class="fa-prime">
                         <span class="fa-prime-emoji">{p.emoji}</span>
-                        <span class="fa-prime-label">{p.label}</span>
+                        <span class="fa-prime-label">{t(p.kind === 'morning' ? 'primeMorning' : 'primeEvening')}</span>
                         <span class="fa-prime-time">{formatLocalTime(p.start, offset)} – {formatLocalTime(p.end, offset)}</span>
                         <span class="fa-prime-score">{primeScoreText(p)}</span>
                     </div>
@@ -154,15 +164,15 @@
 
         <!-- 未来几天指数 -->
         <div class="fa-card">
-            <div class="fa-section-title">未来几天钓鱼指数</div>
+            <div class="fa-section-title">{t('nextDays')}</div>
             <div class="fa-days">
                 {#each daily.slice(0, 5) as d, di}
                     {@const dl = scoreLevel(d.best.total)}
                     <div class="fa-day" class:fa-day--today={di === 0}>
                         <div class="fa-day-head">
-                            <span class="fa-day-weekday">{di === 0 ? '今天' : weekdayCN(d.timestamp, offset)}</span>
-                            <span class="fa-day-date">{d.day}日</span>
-                            <span class="fa-day-icon">{weatherText(d.icon).emoji}</span>
+                            <span class="fa-day-weekday">{di === 0 ? t('today') : weekdayName(d.timestamp, offset, lang)}</span>
+                            <span class="fa-day-date">{t('dayLabel', { day: d.day })}</span>
+                            <span class="fa-day-icon">{weatherText(d.icon, lang).emoji}</span>
                         </div>
                         <div class="fa-day-temps">
                             {tempText(d.tempMax)} / {tempText(d.tempMin)}
@@ -172,11 +182,11 @@
                                 <div class="fa-day-fill" style="width: {d.best.total}%; background: {dl.color}"></div>
                             </div>
                             <span class="fa-day-score">{d.best.total}</span>
-                            <span class="fa-day-level" style="color: {dl.color}">{dl.label}</span>
+                            <span class="fa-day-level" style="color: {dl.color}">{levelLabel(dl.level, lang)}</span>
                         </div>
-                        <div class="fa-day-best">最佳时段 {formatLocalTime(d.best.ts, offset)} · 均分 {d.avg}</div>
+                        <div class="fa-day-best">{t('dayBest', { time: formatLocalTime(d.best.ts, offset), avg: d.avg })}</div>
                         {#if d.predictability !== null}
-                            <div class="fa-day-pred">可预报性 {d.predictability}%</div>
+                            <div class="fa-day-pred">{t('predictability', { p: d.predictability })}</div>
                         {/if}
                     </div>
                 {/each}
@@ -187,14 +197,14 @@
         {#if waves && hasWavesData(waves)}
             {@const wIdx = closestIndex(waves.data.ts, nowScore.ts)}
             <div class="fa-card">
-                <div class="fa-section-title">海浪与海况</div>
+                <div class="fa-section-title">{t('wavesTitle')}</div>
                 <div class="fa-grid">
-                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">浪高</span><span class="fa-item-val">{wavesText(waves.data.waves[wIdx])}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">🔄</span><span class="fa-item-label">周期</span><span class="fa-item-val">{val(waves.data.wavesPeriod[wIdx])} s</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">浪向</span><span class="fa-item-val">{dir2compass(waves.data.wavesDir[wIdx])}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">涌浪1</span><span class="fa-item-val">{wavesSwell1Text(wIdx)}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">海表温度</span><span class="fa-item-val">{sstText()}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">⚡</span><span class="fa-item-label">波功率</span><span class="fa-item-val">{val(waves.data.wavesPower[wIdx])}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblWaveHeight')}</span><span class="fa-item-val">{wavesText(waves.data.waves[wIdx])}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🔄</span><span class="fa-item-label">{t('lblPeriod')}</span><span class="fa-item-val">{val(waves.data.wavesPeriod[wIdx])} s</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">{t('lblWaveDir')}</span><span class="fa-item-val">{dir2compass(waves.data.wavesDir[wIdx], lang)}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblSwell1')}</span><span class="fa-item-val">{wavesSwell1Text(wIdx)}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">{t('lblSeaTemp')}</span><span class="fa-item-val">{sstText()}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">⚡</span><span class="fa-item-label">{t('lblWavePower')}</span><span class="fa-item-val">{val(waves.data.wavesPower[wIdx])}</span></div>
                 </div>
             </div>
         {/if}
@@ -202,16 +212,16 @@
         <!-- 天气预警 -->
         {#if alerts.length > 0}
             <div class="fa-card">
-                <div class="fa-section-title">⚠️ 天气预警</div>
+                <div class="fa-section-title">⚠️ {t('alertsTitle')}</div>
                 {#each alerts as a}
                     <div class="fa-alert" class:fa-alert--sev={alertSeverityClass(a.severity)}>
                         <div class="fa-alert-title">
-                            <b>{alertTypeCN(a.type)}</b>
-                            <span class="fa-alert-sev">{alertSeverityCN(a.severity)}</span>
+                            <b>{alertTypeText(a.type, lang)}</b>
+                            <span class="fa-alert-sev">{alertSeverityText(a.severity, lang)}</span>
                         </div>
                         <div class="fa-alert-event">{a.event || a.headline || ''}</div>
                         <div class="fa-alert-time">
-                            {alertTimeText(a)} · 模型：{air.header.model.toUpperCase()}
+                            {alertTimeText(a)} · {t('modelLabel')} {air.header.model.toUpperCase()}
                         </div>
                     </div>
                 {/each}
@@ -220,19 +230,19 @@
 
         <!-- 地图图层快捷切换 -->
         <div class="fa-card">
-            <div class="fa-section-title">地图图层快捷切换</div>
+            <div class="fa-section-title">{t('layersTitle')}</div>
             <div class="fa-layers">
-                <button class="fa-layer" on:click={() => setOverlay('wind')}>💨 风</button>
-                <button class="fa-layer" on:click={() => setOverlay('gust')}>💨 阵风</button>
-                <button class="fa-layer" on:click={() => setOverlay('rain')}>🌧️ 雨</button>
-                <button class="fa-layer" on:click={() => setOverlay('temp')}>🌡️ 温度</button>
-                <button class="fa-layer" on:click={() => setOverlay('waves')}>🌊 浪</button>
-                <button class="fa-layer" on:click={() => setOverlay('sst')}>🌡️ 海温</button>
+                <button class="fa-layer" on:click={() => setOverlay('wind')}>💨 {t('layerWind')}</button>
+                <button class="fa-layer" on:click={() => setOverlay('gust')}>💨 {t('layerGust')}</button>
+                <button class="fa-layer" on:click={() => setOverlay('rain')}>🌧️ {t('layerRain')}</button>
+                <button class="fa-layer" on:click={() => setOverlay('temp')}>🌡️ {t('layerTemp')}</button>
+                <button class="fa-layer" on:click={() => setOverlay('waves')}>🌊 {t('layerWaves')}</button>
+                <button class="fa-layer" on:click={() => setOverlay('sst')}>🌡️ {t('layerSST')}</button>
             </div>
         </div>
 
         <div class="fa-footer">
-            数据来源：Windy 免费点预报接口（{air.header.model.toUpperCase()}，更新时间 {updateText()}）。指数仅供参考，请结合当地实况判断。🎣
+            {t('footer', { model: air.header.model.toUpperCase(), time: updateText() })}
         </div>
     {/if}
 </section>
@@ -259,21 +269,30 @@
     import type {
         CapAlertHeadline,
         DataHash2,
+        Lang,
         WavesDataHash2,
         WeatherDataPayload2,
     } from './types';
     import {
+        alertSeverityText,
+        alertTypeText,
+        detectLang,
+        dir2compass,
+        levelLabel,
+        moonPhaseText,
+        setLang,
+        translate as _translate,
+        weatherText,
+        weekdayName,
+    } from './i18n';
+    import {
         closestSegment,
         computeDaily,
         computeSegments,
-        dir2compass,
         formatLocalTime,
-        moonPhaseText,
         primeWindows,
         relativeHumidity,
         scoreLevel,
-        weatherText,
-        weekdayCN,
     } from './fishingIndex';
     import type { DayScore, PrimeWindow, SegmentScore } from './fishingIndex';
 
@@ -281,6 +300,40 @@
     const HOUR = 3600 * 1000;
     const INCLUDE = { header: true, celestial: true, meteogram: true, summary: true, debug: true } as const;
     const WAVES_INCLUDE = { header: true, celestial: true, summary: true, debug: true } as const;
+    const LANG_KEY = 'windy-fishing-assistant-lang';
+
+    // 语言状态（默认英语；模板中的翻译通过响应式的 t 读取，语言切换时自动更新）
+    let lang: Lang = 'en';
+    /** 响应式翻译函数：依赖 lang，语言切换后模板自动重渲染 */
+    $: t = (key: Parameters<typeof _translate>[0], vars?: Parameters<typeof _translate>[1]) =>
+        _translate(key, vars, lang);
+
+    const loadSavedLang = (): Lang | null => {
+        try {
+            const v = localStorage.getItem(LANG_KEY);
+            return v === 'en' || v === 'zh' ? v : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const saveLang = (l: Lang) => {
+        try {
+            localStorage.setItem(LANG_KEY, l);
+        } catch {
+            /* 忽略 */
+        }
+    };
+
+    /** 切换语言（中 ⇄ 英） */
+    const toggleLang = () => {
+        lang = lang === 'en' ? 'zh' : 'en';
+        setLang(lang);
+        saveLang(lang);
+        if (loc && reverseName) {
+            setTitle(`🎣 ${t('pluginName')} · ${reverseName}`);
+        }
+    };
 
     let loc: LatLon | null = null;
     let reverseName = '';
@@ -339,7 +392,7 @@
             .get(loc)
             .then(({ name: n }) => {
                 reverseName = n;
-                setTitle(`🎣 钓鱼助手 · ${n}`);
+                setTitle(`🎣 ${t('pluginName')} · ${n}`);
             })
             .catch(() => {
                 reverseName = '';
@@ -465,7 +518,7 @@
         if (p === null || p === undefined || Number.isNaN(p)) return '--';
         if (pp === null || pp === undefined || Number.isNaN(pp)) return '--';
         const d = (p - pp) / 100;
-        if (Math.abs(d) < 0.3) return '稳定';
+        if (Math.abs(d) < 0.3) return lang === 'en' ? 'Stable' : '稳定';
         return d > 0 ? `↑ +${d.toFixed(1)} hPa` : `↓ ${d.toFixed(1)} hPa`;
     };
 
@@ -497,7 +550,10 @@
         const inWin = segments.filter(s => s.ts >= p.start && s.ts <= p.end);
         if (!inWin.length) return '';
         const best = inWin.reduce((a, b) => (b.total > a.total ? b : a), inWin[0]);
-        return `预计指数 ${best.total}（${scoreLevel(best.total).label}）`;
+        return t('primeEst', {
+            score: best.total,
+            level: levelLabel(scoreLevel(best.total).level, lang),
+        });
     };
 
     const hasWavesData = (w: WeatherDataPayload2<WavesDataHash2>): boolean =>
@@ -522,7 +578,7 @@
         if (h === null || h === undefined || Number.isNaN(h)) return '--';
         const per = waves.data.swell1Period?.[idx];
         const dir = waves.data.swell1Dir?.[idx];
-        return `${wavesText(h)}${per != null && !Number.isNaN(per) ? ` / ${Math.round(per)}s` : ''}${dir != null && !Number.isNaN(dir) ? ` ${dir2compass(dir)}` : ''}`;
+        return `${wavesText(h)}${per != null && !Number.isNaN(per) ? ` / ${Math.round(per)}s` : ''}${dir != null && !Number.isNaN(dir) ? ` ${dir2compass(dir, lang)}` : ''}`;
     };
 
     const sstText = (): string => {
@@ -540,35 +596,6 @@
         ).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(
             d.getUTCMinutes(),
         ).padStart(2, '0')} UTC`;
-    };
-
-    const alertTypeCN = (type: string): string => {
-        const map: Record<string, string> = {
-            Wind: '大风',
-            Rain: '降雨',
-            Thunderstorm: '雷暴',
-            Snow: '降雪',
-            Fog: '雾',
-            Temperature: '温度',
-            Heat: '高温',
-            Cold: '低温',
-            Flood: '洪水',
-            CoastalEvent: '海岸事件',
-            Avalanche: '雪崩',
-            Fire: '火险',
-        };
-        return map[type] || type;
-    };
-
-    const alertSeverityCN = (sev: string): string => {
-        const map: Record<string, string> = {
-            Minor: '轻度',
-            Moderate: '中度',
-            Severe: '严重',
-            Extreme: '极端',
-            Unknown: '未知',
-        };
-        return map[sev] || sev;
     };
 
     const alertSeverityClass = (sev: string): boolean =>
@@ -594,6 +621,9 @@
     };
 
     onMount(() => {
+        // 语言：用户手动选择优先，否则自动检测（简体中文用户自动切换为中文）
+        lang = loadSavedLang() ?? detectLang();
+        setLang(lang);
         scListenerId = singleclick.on(name, (ev: LatLon) => {
             setLocation(ev);
         });
@@ -637,6 +667,20 @@
 
         .fa-locate {
             margin: 0;
+        }
+
+        .fa-lang {
+            background: #1e2430;
+            color: #e8ecf0;
+            border: 1px solid #2f3a48;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 13px;
+            cursor: pointer;
+
+            &:hover {
+                border-color: #3d87ff;
+            }
         }
 
         .fa-hint {
