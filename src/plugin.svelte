@@ -216,15 +216,15 @@
             </div>
         </div>
 
-        <!-- 未来12小时钓鱼指数 -->
+        <!-- 未来小时钓鱼指数 -->
         {#if hourly12.length > 0}
             <div class="fa-card">
                 <div class="fa-section-title">
-                {t('nextHours')}
-                {#if hourlyStepH > 1}
-                    <span class="fa-step-note">({t('hourlyStep', { h: hourlyStepH })})</span>
-                {/if}
-            </div>
+                    {t('nextHours')}
+                    {#if hourlyStepH > 1}
+                        <span class="fa-step-note">({t('hourlyStep', { h: hourlyStepH })})</span>
+                    {/if}
+                </div>
                 <div class="fa-hours">
                     {#each hourly12 as h, hi}
                         {@const hl = scoreLevel(h.total)}
