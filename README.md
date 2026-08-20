@@ -32,7 +32,15 @@ English is the default. The plugin also supports **简体中文**:
 - A **🌐** button in the toolbar toggles between English and Chinese.
 - If your Windy/browser language is **Simplified Chinese**, the plugin switches to Chinese automatically on open (you can still change it manually).
 
-## Quick Start (For Developers)
+## Usage
+
+Once opened:
+- The **map center** is used as the fishing spot by default, or open it from the map's **right-click context menu** (passes the clicked position).
+- Click anywhere on the map to change the spot, or drag the pulsing marker.
+- Switch the forecast model at the top, and use "Locate me" for your GPS position.
+- Move the Windy time slider to preview the index at other times — index, breakdown, alerts and best-of-day update live (🕐 shows the selected time, "Forecast" badge when not "now").
+
+## Open in Developer Mode(For Developers)
 
 ```bash
 npm i
@@ -44,11 +52,6 @@ Then open <https://www.windy.com/developer-mode> and load the plugin:
 ```
 https://localhost:9999/plugin.js
 ```
-
-Once opened:
-- The **map center** is used as the fishing spot by default, or open it from the map's **right-click context menu** (passes the clicked position).
-- Click anywhere on the map to change the spot, or drag the pulsing marker.
-- Switch the forecast model at the top, and use "Locate me" for your GPS position.
 
 ## Project Structure
 
