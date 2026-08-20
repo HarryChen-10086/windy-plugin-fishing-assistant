@@ -21,7 +21,7 @@ const config: ExternalPluginConfig = {
     listenToSingleclick: true,
 
     // 私有插件，不会出现在公共插件市场
-    private: true,
+    private: false,
 };
 
 export default config;
