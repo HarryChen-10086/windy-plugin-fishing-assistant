@@ -486,6 +486,16 @@ export const formatLocalTime = (ts: number, offsetHours: number): string => {
     return `${hh}:${mm}`;
 };
 
+/** 将时间戳格式化为当地时间 "M/D HH:MM"（如 8/20 20:00） */
+export const formatLocalDateTime = (ts: number, offsetHours: number): string => {
+    const d = new Date(ts + offsetHours * HOUR);
+    const month = d.getUTCMonth() + 1;
+    const day = d.getUTCDate();
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${month}/${day} ${hh}:${mm}`;
+};
+
 /** 找到最接近给定时间戳的评分 */
 export const closestSegment = (
     segments: SegmentScore[],
