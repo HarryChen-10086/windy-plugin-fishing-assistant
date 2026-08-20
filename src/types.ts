@@ -6,6 +6,16 @@
 /** 插件支持的语言 */
 export type Lang = 'en' | 'zh';
 
+/** 恶劣天气类型（用于顶部警示与安全扣分） */
+export type SevereKind =
+    | 'thunder' // 雷暴
+    | 'rain' // 暴雨
+    | 'snow' // 暴雪
+    | 'wind' // 大风
+    | 'waves' // 大浪
+    | 'temp' // 极端温度
+    | 'fog'; // 大雾
+
 /** 天气状况图标码（与 Windy 客户端 WeatherConditionIcon 枚举一致） */
 export enum WeatherConditionIcon {
     Clear = 1,

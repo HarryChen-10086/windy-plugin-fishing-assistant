@@ -8,7 +8,7 @@
  */
 import store from '@windy/store';
 
-import type { Lang, MoonPhase, WeatherConditionIcon } from './types';
+import type { Lang, MoonPhase, SevereKind, WeatherConditionIcon } from './types';
 import { MoonPhase as MoonPhaseEnum, WeatherConditionIcon as IconEnum } from './types';
 
 export type { Lang };
@@ -31,6 +31,11 @@ const en = {
     scoreTemp: 'Temperature',
     scoreTime: 'Time of day',
     scoreMoon: 'Moon',
+    scoreSafety: 'Safety',
+    // 恶劣天气警示
+    severeTitle: 'Adverse Conditions',
+    severeEndAt: 'Estimated end: {time}',
+    severePersist: 'May persist for the forecast period',
     // 当前气象条件
     currentConditions: 'Current Conditions',
     lblTemp: 'Temp',
@@ -99,6 +104,11 @@ const zh: Record<keyof typeof en, string> = {
     scoreTemp: '温度',
     scoreTime: '时段',
     scoreMoon: '月相',
+    scoreSafety: '安全',
+    // 恶劣天气警示
+    severeTitle: '恶劣天气提示',
+    severeEndAt: '预计结束：{time}',
+    severePersist: '预计将持续至预报期末',
     currentConditions: '当前气象条件',
     lblTemp: '气温',
     lblFeels: '体感',
@@ -389,3 +399,67 @@ export const alertSeverityText = (sev: string, lang: Lang = currentLang): string
     const full = fullMap[sev];
     return full ? (lang === 'en' ? full.en : full.zh) : sev;
 };
+
+/* ---------- 恶劣天气警示 ---------- */
+
+const SEVERE_LABELS: Record<SevereKind, { en: string; zh: string }> = {
+    thunder: { en: 'Thunderstorm', zh: '雷暴' },
+    rain: { en: 'Heavy rain', zh: '暴雨' },
+    snow: { en: 'Heavy snow', zh: '暴雪' },
+    wind: { en: 'Strong wind', zh: '大风' },
+    waves: { en: 'Big waves', zh: '大浪' },
+    temp: { en: 'Extreme temperature', zh: '极端温度' },
+    fog: { en: 'Dense fog', zh: '大雾' },
+};
+
+const SEVERE_MESSAGES: Record<SevereKind, { en: string; zh: string }> = {
+    thunder: {
+        en: 'Lightning risk is high — avoid open water and banks.',
+        zh: '雷击风险高，请勿在水边或空旷处逗留。',
+    },
+    rain: {
+        en: 'Heavy rainfall may cut fish activity and visibility.',
+        zh: '强降水可能降低鱼口，也影响观察与安全。',
+    },
+    snow: {
+        en: 'Heavy snowfall with cold air and low visibility.',
+        zh: '降雪大，气温低且能见度差。',
+    },
+    wind: {
+        en: 'Strong wind makes casting and boat handling difficult.',
+        zh: '风力大，抛竿与船只操控困难。',
+    },
+    waves: {
+        en: 'Big waves — risky for small boats and shore fishing.',
+        zh: '浪高较大，小船或岸边作钓存在风险。',
+    },
+    temp: {
+        en: 'Extreme temperatures stress both fish and anglers.',
+        zh: '气温极端，鱼与人都不易适应。',
+    },
+    fog: {
+        en: 'Dense fog with poor visibility.',
+        zh: '雾大，能见度低。',
+    },
+};
+
+const SEVERE_EMOJIS: Record<SevereKind, string> = {
+    thunder: '⛈️',
+    rain: '🌧️',
+    snow: '🌨️',
+    wind: '💨',
+    waves: '🌊',
+    temp: '🌡️',
+    fog: '🌫️',
+};
+
+/** 恶劣条件标签 */
+export const severeLabel = (kind: SevereKind, lang: Lang = currentLang): string =>
+    SEVERE_LABELS[kind][lang];
+
+/** 恶劣条件提示语 */
+export const severeMsg = (kind: SevereKind, lang: Lang = currentLang): string =>
+    SEVERE_MESSAGES[kind][lang];
+
+/** 恶劣条件 emoji */
+export const severeEmoji = (kind: SevereKind): string => SEVERE_EMOJIS[kind] ?? '⚠️';

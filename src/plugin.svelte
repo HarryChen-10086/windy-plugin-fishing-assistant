@@ -50,6 +50,27 @@
         {@const weather = weatherText(nowScore.icon, lang)}
         {@const level = scoreLevel(nowScore.total)}
 
+        <!-- 恶劣天气警示（最上方） -->
+        {#if currentSevere.length > 0}
+            <div class="fa-warn">
+                <div class="fa-warn-title">⚠️ {t('severeTitle')}</div>
+                {#each currentSevere as c}
+                    <div class="fa-warn-item">
+                        <span class="fa-warn-emoji">{severeEmoji(c.kind)}</span>
+                        <div class="fa-warn-body">
+                            <div class="fa-warn-label">{severeLabel(c.kind, lang)}</div>
+                            <div class="fa-warn-msg">{severeMsg(c.kind, lang)}</div>
+                            <div class="fa-warn-end">
+                                {c.end !== null
+                                    ? t('severeEndAt', { time: formatLocalTime(c.end, offset) })
+                                    : t('severePersist')}
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+
         <!-- 当前钓鱼指数 -->
         <div class="fa-card fa-card--hero">
             <div class="fa-section-title">{t('currentIndex')}</div>
@@ -121,8 +142,34 @@
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.moon / 10) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.moon}/10</span>
                 </div>
+                {#if nowScore.safety < 0}
+                    <div class="fa-bd-row fa-bd-row--safety">
+                        <span class="fa-bd-name">{t('scoreSafety')}</span>
+                        <div class="fa-bd-bar"><div class="fa-bd-fill fa-bd-fill--neg" style="width: {Math.min(100, (Math.abs(nowScore.safety) / 40) * 100)}%"></div></div>
+                        <span class="fa-bd-val fa-bd-val--neg">{nowScore.safety}</span>
+                    </div>
+                {/if}
             </div>
         </div>
+
+        <!-- 天气预警 -->
+        {#if alerts.length > 0}
+            <div class="fa-card">
+                <div class="fa-section-title">⚠️ {t('alertsTitle')}</div>
+                {#each alerts as a}
+                    <div class="fa-alert" class:fa-alert--sev={alertSeverityClass(a.severity)}>
+                        <div class="fa-alert-title">
+                            <b>{alertTypeText(a.type, lang)}</b>
+                            <span class="fa-alert-sev">{alertSeverityText(a.severity, lang)}</span>
+                        </div>
+                        <div class="fa-alert-event">{a.event || a.headline || ''}</div>
+                        <div class="fa-alert-time">
+                            {alertTimeText(a)} · {t('modelLabel')} {air.header.model.toUpperCase()}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
 
         <!-- 当前气象条件 -->
         <div class="fa-card">
@@ -209,25 +256,6 @@
             </div>
         {/if}
 
-        <!-- 天气预警 -->
-        {#if alerts.length > 0}
-            <div class="fa-card">
-                <div class="fa-section-title">⚠️ {t('alertsTitle')}</div>
-                {#each alerts as a}
-                    <div class="fa-alert" class:fa-alert--sev={alertSeverityClass(a.severity)}>
-                        <div class="fa-alert-title">
-                            <b>{alertTypeText(a.type, lang)}</b>
-                            <span class="fa-alert-sev">{alertSeverityText(a.severity, lang)}</span>
-                        </div>
-                        <div class="fa-alert-event">{a.event || a.headline || ''}</div>
-                        <div class="fa-alert-time">
-                            {alertTimeText(a)} · {t('modelLabel')} {air.header.model.toUpperCase()}
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        {/if}
-
         <!-- 地图图层快捷切换 -->
         <div class="fa-card">
             <div class="fa-section-title">{t('layersTitle')}</div>
@@ -270,6 +298,7 @@
         CapAlertHeadline,
         DataHash2,
         Lang,
+        SevereKind,
         WavesDataHash2,
         WeatherDataPayload2,
     } from './types';
@@ -281,11 +310,15 @@
         levelLabel,
         moonPhaseText,
         setLang,
+        severeEmoji,
+        severeLabel,
+        severeMsg,
         translate as _translate,
         weatherText,
         weekdayName,
     } from './i18n';
     import {
+        closestIndex,
         closestSegment,
         computeDaily,
         computeSegments,
@@ -293,6 +326,7 @@
         primeWindows,
         relativeHumidity,
         scoreLevel,
+        severeEndTs,
     } from './fishingIndex';
     import type { DayScore, PrimeWindow, SegmentScore } from './fishingIndex';
 
@@ -350,6 +384,14 @@
     let primes: PrimeWindow[] = [];
     let nowScore: SegmentScore | null = null;
     let bestToday: SegmentScore | null = null;
+
+    /** 当前存在的恶劣条件（用于顶部警示） */
+    interface CurrentSevere {
+        kind: SevereKind;
+        /** 预计结束时间戳，null 表示将持续 */
+        end: number | null;
+    }
+    let currentSevere: CurrentSevere[] = [];
 
     let marker: L.Marker | null = null;
     let scListenerId = 0;
@@ -415,6 +457,13 @@
             // 丢弃过期请求的结果
             if (mySeq !== requestSeq) return;
 
+            // 先处理海浪数据，供指数计算中的大浪检测使用
+            if (wavesRes.status === 'fulfilled' && wavesRes.value.data?.data) {
+                waves = wavesRes.value.data;
+            } else {
+                waves = null;
+            }
+
             if (airRes.status === 'fulfilled') {
                 const payload = airRes.value.data;
                 if (!payload || !payload.data) {
@@ -422,12 +471,22 @@
                 }
                 air = payload;
 
-                // 计算各时段钓鱼指数
+                // 计算各时段钓鱼指数（含恶劣条件安全扣分）
                 const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0;
-                segments = computeSegments(air.data, air.celestial);
+                segments = computeSegments(air.data, air.celestial, waves?.data ?? null);
                 primes = primeWindows(air.celestial);
                 daily = computeDaily(air.data, segments, air.summary, air.celestial);
                 nowScore = closestSegment(segments, Date.now());
+
+                // 当前恶劣条件（用于顶部警示）
+                const nowSegIdx = nowScore ? segments.indexOf(nowScore) : -1;
+                currentSevere =
+                    nowSegIdx >= 0
+                        ? segments[nowSegIdx].severeKinds.map(kind => ({
+                              kind,
+                              end: severeEndTs(segments, kind, nowSegIdx),
+                          }))
+                        : [];
 
                 // 今日最佳时段
                 const todayTs = Date.now() + offset * HOUR;
@@ -447,12 +506,6 @@
                     : nowScore;
             } else {
                 throw new Error((airRes.reason as Error)?.message || '获取气象数据失败');
-            }
-
-            if (wavesRes.status === 'fulfilled' && wavesRes.value.data?.data) {
-                waves = wavesRes.value.data;
-            } else {
-                waves = null;
             }
 
             if (alertsRes.status === 'fulfilled' && alertsRes.value.data) {
@@ -558,19 +611,6 @@
 
     const hasWavesData = (w: WeatherDataPayload2<WavesDataHash2>): boolean =>
         !!w.data && Array.isArray(w.data.waves) && w.data.waves.some(v => v !== null && !Number.isNaN(v));
-
-    const closestIndex = (tsArr: number[], ts: number): number => {
-        let best = 0;
-        let bestDiff = Infinity;
-        tsArr.forEach((t, i) => {
-            const d = Math.abs(t - ts);
-            if (d < bestDiff) {
-                bestDiff = d;
-                best = i;
-            }
-        });
-        return best;
-    };
 
     const wavesSwell1Text = (idx: number): string => {
         if (!waves) return '--';
@@ -701,6 +741,63 @@
         padding: 8px 12px;
     }
 
+    .fa-warn {
+        background: linear-gradient(135deg, #3a1f1f 0%, #46221f 100%);
+        border: 1px solid #7a2f28;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+
+        .fa-warn-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffd27a;
+            margin-bottom: 8px;
+        }
+
+        .fa-warn-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 6px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+            &:first-of-type {
+                border-top: none;
+            }
+
+            .fa-warn-emoji {
+                font-size: 20px;
+                line-height: 1.3;
+            }
+
+            .fa-warn-body {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+
+            .fa-warn-label {
+                font-size: 13px;
+                font-weight: 700;
+                color: #ffb4a2;
+            }
+
+            .fa-warn-msg {
+                font-size: 12px;
+                color: #e8d5cf;
+                line-height: 1.5;
+            }
+
+            .fa-warn-end {
+                font-size: 12px;
+                color: #ffd27a;
+                font-variant-numeric: tabular-nums;
+            }
+        }
+    }
+
     .fa-card {
         background: #171d27;
         border: 1px solid #232b38;
@@ -829,6 +926,21 @@
                 flex-shrink: 0;
                 text-align: right;
                 font-variant-numeric: tabular-nums;
+            }
+
+            &--safety {
+                .fa-bd-name {
+                    color: #ffb4a2;
+                }
+
+                .fa-bd-fill--neg {
+                    background: linear-gradient(90deg, #e74c3c, #c0392b);
+                }
+
+                .fa-bd-val--neg {
+                    color: #e74c3c;
+                    font-weight: 700;
+                }
             }
         }
     }
