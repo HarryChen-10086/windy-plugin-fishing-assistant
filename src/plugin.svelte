@@ -63,7 +63,7 @@
                             <div class="fa-warn-msg">{severeMsg(c.kind, lang)}</div>
                             <div class="fa-warn-end">
                                 {c.end !== null
-                                    ? t('severeEndAt', { time: formatLocalTime(c.end, offset) })
+                                    ? t('severeEndAt', { time: formatLocalDateTime(c.end, offset) })
                                     : t('severePersist')}
                             </div>
                         </div>
@@ -188,7 +188,7 @@
                 <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">{t('lblDir')}</span><span class="fa-item-val">{dir2compass(air.data.windDir[nowIdx], lang)}{t('windSuffix')}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">{t('lblGust')}</span><span class="fa-item-val">{windText(air.data.windGust[nowIdx])}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">🌀</span><span class="fa-item-label">{t('lblPressure')}</span><span class="fa-item-val">{pressureText(air.data.pressure[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">{t('lblTrend')}</span><span class="fa-item-val">{pressureTrend(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">{t('lblTrend')}</span><span class="fa-item-val">{pressureTrend(nowIdx, lang)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">💧</span><span class="fa-item-label">{t('lblHumidity')}</span><span class="fa-item-val">{humidityText(nowIdx)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">☁️</span><span class="fa-item-label">{t('lblClouds')}</span><span class="fa-item-val">{cloudText(nowIdx)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">🌧️</span><span class="fa-item-label">{t('lblPrecip')}</span><span class="fa-item-val">{rainText(nowIdx)}</span></div>
@@ -210,7 +210,7 @@
                         <span class="fa-prime-emoji">{p.emoji}</span>
                         <span class="fa-prime-label">{t(p.kind === 'morning' ? 'primeMorning' : 'primeEvening')}</span>
                         <span class="fa-prime-time">{formatLocalTime(p.start, offset)} – {formatLocalTime(p.end, offset)}</span>
-                        <span class="fa-prime-score">{primeScoreText(p)}</span>
+                        <span class="fa-prime-score">{primeScoreText(p, lang)}</span>
                     </div>
                 {/each}
             </div>
@@ -256,7 +256,7 @@
                     <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblWaveHeight')}</span><span class="fa-item-val">{wavesText(waves.data.waves[wIdx])}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🔄</span><span class="fa-item-label">{t('lblPeriod')}</span><span class="fa-item-val">{val(waves.data.wavesPeriod[wIdx])} s</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">{t('lblWaveDir')}</span><span class="fa-item-val">{dir2compass(waves.data.wavesDir[wIdx], lang)}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblSwell1')}</span><span class="fa-item-val">{wavesSwell1Text(wIdx)}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblSwell1')}</span><span class="fa-item-val">{wavesSwell1Text(wIdx, lang)}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">{t('lblSeaTemp')}</span><span class="fa-item-val">{sstText()}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">⚡</span><span class="fa-item-label">{t('lblWavePower')}</span><span class="fa-item-val">{val(waves.data.wavesPower[wIdx])}</span></div>
                 </div>
@@ -351,6 +351,7 @@
         closestSegment,
         computeDaily,
         computeSegments,
+        formatLocalDateTime,
         formatLocalTime,
         primeWindows,
         relativeHumidity,
@@ -610,7 +611,7 @@
     const wavesText = (x: number | null | undefined): string =>
         x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.waves.convertValue(x);
 
-    const pressureTrend = (idx: number): string => {
+    const pressureTrend = (idx: number, lang: Lang): string => {
         if (!air) return '--';
         const p = air.data.pressure[idx];
         const pp = idx > 0 ? air.data.pressure[idx - 1] : null;
@@ -644,21 +645,25 @@
         return `${Math.round(air.header.elevation)} m`;
     };
 
-    const primeScoreText = (p: PrimeWindow): string => {
+    const primeScoreText = (p: PrimeWindow, lang: Lang): string => {
         if (!segments.length) return '';
         const inWin = segments.filter(s => s.ts >= p.start && s.ts <= p.end);
         if (!inWin.length) return '';
         const best = inWin.reduce((a, b) => (b.total > a.total ? b : a), inWin[0]);
-        return t('primeEst', {
-            score: best.total,
-            level: levelLabel(scoreLevel(best.total).level, lang),
-        });
+        return _translate(
+            'primeEst',
+            {
+                score: best.total,
+                level: levelLabel(scoreLevel(best.total).level, lang),
+            },
+            lang,
+        );
     };
 
     const hasWavesData = (w: WeatherDataPayload2<WavesDataHash2>): boolean =>
         !!w.data && Array.isArray(w.data.waves) && w.data.waves.some(v => v !== null && !Number.isNaN(v));
 
-    const wavesSwell1Text = (idx: number): string => {
+    const wavesSwell1Text = (idx: number, lang: Lang): string => {
         if (!waves) return '--';
         const h = waves.data.swell1?.[idx];
         if (h === null || h === undefined || Number.isNaN(h)) return '--';
