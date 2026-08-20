@@ -87,6 +87,11 @@ const en = {
     footer:
         'Data source: Windy free point forecast API ({model}, updated {time}). The index is for reference only — always check local conditions. 🎣',
     pluginName: 'Fishing Assistant',
+    // 测试版横幅
+    betaText:
+        'This project is in beta. Found a bug or have a suggestion? Please report it via Issues — contributions are welcome!',
+    betaLink: 'Report / Contribute',
+    betaRepoLabel: 'Project repository',
 } as const;
 
 /** 中文翻译表 */
@@ -152,6 +157,10 @@ const zh: Record<keyof typeof en, string> = {
     windSuffix: '风',
     footer: '数据来源：Windy 免费点预报接口（{model}，更新时间 {time}）。指数仅供参考，请结合当地实况判断。🎣',
     pluginName: '钓鱼助手',
+    // 测试版横幅
+    betaText: '本项目目前处于测试阶段。遇到问题或有建议，请在 Issues 中提出，欢迎贡献！',
+    betaLink: '提交问题 / 参与贡献',
+    betaRepoLabel: '项目地址',
 };
 
 export type TranslationKey = keyof typeof en;
