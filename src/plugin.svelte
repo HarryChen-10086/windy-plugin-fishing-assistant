@@ -216,6 +216,32 @@
             </div>
         </div>
 
+        <!-- 未来12小时钓鱼指数 -->
+        {#if hourly12.length > 0}
+            <div class="fa-card">
+                <div class="fa-section-title">
+                {t('nextHours')}
+                {#if hourlyStepH > 1}
+                    <span class="fa-step-note">({t('hourlyStep', { h: hourlyStepH })})</span>
+                {/if}
+            </div>
+                <div class="fa-hours">
+                    {#each hourly12 as h, hi}
+                        {@const hl = scoreLevel(h.total)}
+                        <div class="fa-hour" class:fa-hour--now={hi === 0}>
+                            <div class="fa-hour-time">{formatLocalTime(h.ts, offset)}</div>
+                            <div class="fa-hour-icon">{weatherText(h.icon, lang).emoji}</div>
+                            <div class="fa-hour-score">{h.total}</div>
+                            <div class="fa-hour-level" style="color: {hl.color}">{levelLabel(hl.level, lang)}</div>
+                            <div class="fa-hour-bar">
+                                <div class="fa-hour-fill" style="width: {h.total}%; background: {hl.color}"></div>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
         <!-- 未来几天指数 -->
         <div class="fa-card">
             <div class="fa-section-title">{t('nextDays')}</div>
@@ -321,16 +347,20 @@
     import config from './pluginConfig';
 
     import type { LatLon } from '@windy/interfaces.d';
-    import type { Overlays } from '@windy/rootScope.d';
+    import type { overlays } from '@windy/rootScope.d';
 
     import type {
         CapAlertHeadline,
+        Celestial,
         DataHash2,
         Lang,
         SevereKind,
         WavesDataHash2,
         WeatherDataPayload2,
     } from './types';
+
+    /** 地图叠加层标识（由 rootScope 的 overlays 常量派生） */
+    type Overlays = (typeof overlays)[number];
     import {
         alertSeverityText,
         alertTypeText,
@@ -364,6 +394,7 @@
     const HOUR = 3600 * 1000;
     const INCLUDE = { header: true, celestial: true, meteogram: true, summary: true, debug: true } as const;
     const WAVES_INCLUDE = { header: true, celestial: true, summary: true, debug: true } as const;
+    const HOURLY_INCLUDE = { header: true, celestial: true } as const;
     const LANG_KEY = 'windy-fishing-assistant-lang';
 
     // 语言状态（默认英语；模板中的翻译通过响应式的 t 读取，语言切换时自动更新）
@@ -415,6 +446,15 @@
     let nowScore: SegmentScore | null = null;
     let bestToday: SegmentScore | null = null;
 
+    /** 未来小时逐小时指数（基于接口实际返回步长的数据） */
+    let hourlySegments: SegmentScore[] = [];
+    /** 接口实际返回的步长（小时），用于界面标注与窗口计算 */
+    $: hourlyStepH = hourlySegments.length >= 2 ? hourlyStepOf(hourlySegments) : 1;
+    /** 按实际步长取未来 12 个点：1h → 12 小时窗口，3h → 36 小时窗口 */
+    $: hourly12 = hourlySegments
+        .filter(s => s.ts >= Date.now() && s.ts <= Date.now() + hourlyStepH * 12 * HOUR)
+        .slice(0, 12);
+
     /** Windy 时间条当前时刻（毫秒），用于计算“当前”钓鱼指数 */
     let selectedTime = Date.now();
     /** 所选时刻是否即“现在”（界面徽章用） */
@@ -456,8 +496,8 @@
             iconAnchor: [5, 5],
         });
         marker = L.marker([lat, lon], { draggable: true, icon }).addTo(map);
-        marker.on('dragend', (ev: L.LeafletMouseEvent) => {
-            const { lat: la, lng } = ev.target.getLatLng();
+        marker.on('dragend', (ev: L.DragEndEvent) => {
+            const { lat: la, lng } = (ev.target as L.Marker).getLatLng();
             setLocation({ lat: la, lon: lng });
         });
     };
@@ -477,6 +517,14 @@
                 reverseName = '';
             });
         loadData(latLon.lat, latLon.lon);
+    };
+
+    /** 计算评分序列的实际步长（小时），取中位数 */
+    const hourlyStepOf = (segs: SegmentScore[]): number => {
+        if (segs.length < 2) return 0;
+        const diffs = segs.slice(1).map((s, i) => s.ts - segs[i].ts);
+        const sorted = [...diffs].sort((a, b) => a - b);
+        return Math.round(sorted[Math.floor(sorted.length / 2)] / HOUR);
     };
 
     /**
@@ -523,10 +571,11 @@
         loading = true;
         error = '';
         try {
-            const [airRes, wavesRes, alertsRes] = await Promise.allSettled([
+            const [airRes, wavesRes, alertsRes, hourlyRes] = await Promise.allSettled([
                 getPointForecastData(selectedModel, { lat, lon, days: 5, step: 3, source: 'detail' }, INCLUDE),
-                getPointForecastData<WavesDataHash2>(wavesModelOf(selectedModel), { lat, lon, days: 3, step: 3, source: 'detail' }, WAVES_INCLUDE),
+                getPointForecastData(wavesModelOf(selectedModel), { lat, lon, days: 3, step: 3, source: 'detail' }, WAVES_INCLUDE),
                 getCapAlertsSummary({ lat, lon }, 'detail'),
+                getPointForecastData(selectedModel, { lat, lon, days: 2, step: 1, source: 'detail' }, HOURLY_INCLUDE),
             ]);
 
             // 丢弃过期请求的结果
@@ -534,7 +583,7 @@
 
             // 先处理海浪数据，供指数计算中的大浪检测使用
             if (wavesRes.status === 'fulfilled' && wavesRes.value.data?.data) {
-                waves = wavesRes.value.data;
+                waves = wavesRes.value.data as unknown as WeatherDataPayload2<WavesDataHash2>;
             } else {
                 waves = null;
             }
@@ -544,7 +593,7 @@
                 if (!payload || !payload.data) {
                     throw new Error('未能获取该地点的预报数据（可能不在所选模型覆盖范围）');
                 }
-                air = payload;
+                air = payload as unknown as WeatherDataPayload2<DataHash2>;
 
                 // 计算各时段钓鱼指数（含恶劣条件安全扣分），并按时间条时刻定位“当前”指数
                 segments = computeSegments(air.data, air.celestial, waves?.data ?? null);
@@ -560,6 +609,22 @@
             } else {
                 alerts = [];
             }
+
+            // 未来小时逐小时指数：仅用点预报，按实际步长展示 12 个点（1h → 12h，3h → 36h）
+            hourlySegments = [];
+            if (hourlyRes.status === 'fulfilled' && hourlyRes.value.data?.data) {
+                const pf = hourlyRes.value.data;
+                hourlySegments = computeSegments(
+                    pf.data as unknown as DataHash2,
+                    pf.celestial as unknown as Celestial | undefined,
+                    waves?.data ?? null,
+                );
+            }
+            console.log(
+                `[FishingAssistant] 未来小时指数：${hourlySegments.length} 个点，步长 ${hourlyStepOf(
+                    hourlySegments,
+                )}h`,
+            );
         } catch (e) {
             if (mySeq !== requestSeq) return;
             console.error('Fishing assistant error:', e);
@@ -700,11 +765,10 @@
 
     /** 插件打开时：优先使用上下文菜单传入的地点，否则使用地图中心 */
     export const onopen = (params?: unknown) => {
-        const latLon = params as LatLon | undefined;
-        if (isValidLatLonObj(latLon)) {
+        if (isValidLatLonObj(params)) {
             const zoom = Math.max(8, map.getZoom());
-            map.setView([latLon.lat, latLon.lon], zoom, { animate: true });
-            setLocation({ lat: latLon.lat, lon: latLon.lon });
+            map.setView([params.lat, params.lon], zoom, { animate: true });
+            setLocation({ lat: params.lat, lon: params.lon });
         } else {
             const c = map.getCenter();
             setLocation({ lat: c.lat, lon: c.lng });
@@ -902,6 +966,13 @@
                 border-radius: 999px;
                 padding: 1px 8px;
                 vertical-align: middle;
+            }
+
+            .fa-step-note {
+                font-size: 11px;
+                font-weight: 400;
+                color: #7f8b99;
+                margin-left: 6px;
             }
         }
     }
@@ -1207,6 +1278,65 @@
                 font-size: 11px;
                 color: #5c6b7a;
                 margin-top: 2px;
+            }
+        }
+    }
+
+    .fa-hours {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+        gap: 8px;
+
+        .fa-hour {
+            background: #12161d;
+            border-radius: 8px;
+            padding: 8px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+
+            &--now {
+                border: 1px solid #2a3b4d;
+            }
+
+            .fa-hour-time {
+                font-size: 12px;
+                font-weight: 700;
+                color: #fff;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .fa-hour-icon {
+                font-size: 18px;
+                line-height: 1;
+            }
+
+            .fa-hour-score {
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                line-height: 1;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .fa-hour-level {
+                font-size: 10px;
+                line-height: 1;
+            }
+
+            .fa-hour-bar {
+                width: 100%;
+                height: 4px;
+                background: #232b38;
+                border-radius: 2px;
+                overflow: hidden;
+
+                .fa-hour-fill {
+                    height: 100%;
+                    border-radius: 2px;
+                    transition: width 0.4s ease;
+                }
             }
         }
     }
