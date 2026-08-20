@@ -209,7 +209,7 @@
                     <div class="fa-prime">
                         <span class="fa-prime-emoji">{p.emoji}</span>
                         <span class="fa-prime-label">{t(p.kind === 'morning' ? 'primeMorning' : 'primeEvening')}</span>
-                        <span class="fa-prime-time">{formatLocalTime(p.start, offset)} – {formatLocalTime(p.end, offset)}</span>
+                        <span class="fa-prime-time">{p.date} {formatLocalTime(p.start, offset)} – {formatLocalTime(p.end, offset)}</span>
                         <span class="fa-prime-score">{primeScoreText(p, lang)}</span>
                     </div>
                 {/each}
@@ -381,6 +381,7 @@
         closestSegment,
         computeDaily,
         computeSegments,
+        formatLocalDate,
         formatLocalDateTime,
         formatLocalTime,
         primeWindows,
@@ -712,8 +713,13 @@
 
     const primeScoreText = (p: PrimeWindow, lang: Lang): string => {
         if (!segments.length) return '';
-        const inWin = segments.filter(s => s.ts >= p.start && s.ts <= p.end);
-        if (!inWin.length) return '';
+        let inWin = segments.filter(s => s.ts >= p.start && s.ts <= p.end);
+        if (!inWin.length) {
+            // 窗口内无数据点（如清晨窗口早于预报数据起点）：取最接近窗口中心的时段
+            const nearest = closestSegment(segments, (p.start + p.end) / 2);
+            if (!nearest) return '';
+            inWin = [nearest];
+        }
         const best = inWin.reduce((a, b) => (b.total > a.total ? b : a), inWin[0]);
         return _translate(
             'primeEst',
