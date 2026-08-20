@@ -9,4 +9,4 @@ node_modules
 package-lock.json
 *.log
 dist/*
-docslink.txt
+dev_files

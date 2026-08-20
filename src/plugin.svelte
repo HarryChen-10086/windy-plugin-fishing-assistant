@@ -34,6 +34,7 @@
             🌐 {t('switchLang')}
         </button>
         <div class="fa-hint">{t('clickHint')}</div>
+        <div class="fa-hint">{t('timeHint')}</div>
     </div>
 
     {#if loading}
@@ -62,7 +63,7 @@
                             <div class="fa-warn-msg">{severeMsg(c.kind, lang)}</div>
                             <div class="fa-warn-end">
                                 {c.end !== null
-                                    ? t('severeEndAt', { time: formatLocalTime(c.end, offset) })
+                                    ? t('severeEndAt', { time: formatLocalDateTime(c.end, offset) })
                                     : t('severePersist')}
                             </div>
                         </div>
@@ -73,7 +74,13 @@
 
         <!-- 当前钓鱼指数 -->
         <div class="fa-card fa-card--hero">
-            <div class="fa-section-title">{t('currentIndex')}</div>
+            <div class="fa-section-title">
+                {t('currentIndex')}
+                <span class="fa-time-chip">🕐 {formatLocalTime(nowScore.ts, offset)}</span>
+                {#if !isNowTime}
+                    <span class="fa-fcst-badge">{t('forecastTime')}</span>
+                {/if}
+            </div>
             <div class="fa-hero">
                 <div class="fa-gauge">
                     <svg viewBox="0 0 120 120" width="120" height="120">
@@ -181,7 +188,7 @@
                 <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">{t('lblDir')}</span><span class="fa-item-val">{dir2compass(air.data.windDir[nowIdx], lang)}{t('windSuffix')}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">💨</span><span class="fa-item-label">{t('lblGust')}</span><span class="fa-item-val">{windText(air.data.windGust[nowIdx])}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">🌀</span><span class="fa-item-label">{t('lblPressure')}</span><span class="fa-item-val">{pressureText(air.data.pressure[nowIdx])}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">{t('lblTrend')}</span><span class="fa-item-val">{pressureTrend(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">{t('lblTrend')}</span><span class="fa-item-val">{pressureTrend(nowIdx, lang)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">💧</span><span class="fa-item-label">{t('lblHumidity')}</span><span class="fa-item-val">{humidityText(nowIdx)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">☁️</span><span class="fa-item-label">{t('lblClouds')}</span><span class="fa-item-val">{cloudText(nowIdx)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">🌧️</span><span class="fa-item-label">{t('lblPrecip')}</span><span class="fa-item-val">{rainText(nowIdx)}</span></div>
@@ -203,11 +210,37 @@
                         <span class="fa-prime-emoji">{p.emoji}</span>
                         <span class="fa-prime-label">{t(p.kind === 'morning' ? 'primeMorning' : 'primeEvening')}</span>
                         <span class="fa-prime-time">{formatLocalTime(p.start, offset)} – {formatLocalTime(p.end, offset)}</span>
-                        <span class="fa-prime-score">{primeScoreText(p)}</span>
+                        <span class="fa-prime-score">{primeScoreText(p, lang)}</span>
                     </div>
                 {/each}
             </div>
         </div>
+
+        <!-- 未来小时钓鱼指数 -->
+        {#if hourly12.length > 0}
+            <div class="fa-card">
+                <div class="fa-section-title">
+                    {t('nextHours')}
+                    {#if hourlyStepH > 1}
+                        <span class="fa-step-note">({t('hourlyStep', { h: hourlyStepH })})</span>
+                    {/if}
+                </div>
+                <div class="fa-hours">
+                    {#each hourly12 as h, hi}
+                        {@const hl = scoreLevel(h.total)}
+                        <div class="fa-hour" class:fa-hour--now={hi === 0}>
+                            <div class="fa-hour-time">{formatLocalTime(h.ts, offset)}</div>
+                            <div class="fa-hour-icon">{weatherText(h.icon, lang).emoji}</div>
+                            <div class="fa-hour-score">{h.total}</div>
+                            <div class="fa-hour-level" style="color: {hl.color}">{levelLabel(hl.level, lang)}</div>
+                            <div class="fa-hour-bar">
+                                <div class="fa-hour-fill" style="width: {h.total}%; background: {hl.color}"></div>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
 
         <!-- 未来几天指数 -->
         <div class="fa-card">
@@ -249,7 +282,7 @@
                     <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblWaveHeight')}</span><span class="fa-item-val">{wavesText(waves.data.waves[wIdx])}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🔄</span><span class="fa-item-label">{t('lblPeriod')}</span><span class="fa-item-val">{val(waves.data.wavesPeriod[wIdx])} s</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">{t('lblWaveDir')}</span><span class="fa-item-val">{dir2compass(waves.data.wavesDir[wIdx], lang)}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblSwell1')}</span><span class="fa-item-val">{wavesSwell1Text(wIdx)}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblSwell1')}</span><span class="fa-item-val">{wavesSwell1Text(wIdx, lang)}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">{t('lblSeaTemp')}</span><span class="fa-item-val">{sstText()}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">⚡</span><span class="fa-item-label">{t('lblWavePower')}</span><span class="fa-item-val">{val(waves.data.wavesPower[wIdx])}</span></div>
                 </div>
@@ -314,16 +347,20 @@
     import config from './pluginConfig';
 
     import type { LatLon } from '@windy/interfaces.d';
-    import type { Overlays } from '@windy/rootScope.d';
+    import type { overlays } from '@windy/rootScope.d';
 
     import type {
         CapAlertHeadline,
+        Celestial,
         DataHash2,
         Lang,
         SevereKind,
         WavesDataHash2,
         WeatherDataPayload2,
     } from './types';
+
+    /** 地图叠加层标识（由 rootScope 的 overlays 常量派生） */
+    type Overlays = (typeof overlays)[number];
     import {
         alertSeverityText,
         alertTypeText,
@@ -344,6 +381,7 @@
         closestSegment,
         computeDaily,
         computeSegments,
+        formatLocalDateTime,
         formatLocalTime,
         primeWindows,
         relativeHumidity,
@@ -356,6 +394,7 @@
     const HOUR = 3600 * 1000;
     const INCLUDE = { header: true, celestial: true, meteogram: true, summary: true, debug: true } as const;
     const WAVES_INCLUDE = { header: true, celestial: true, summary: true, debug: true } as const;
+    const HOURLY_INCLUDE = { header: true, celestial: true } as const;
     const LANG_KEY = 'windy-fishing-assistant-lang';
 
     // 语言状态（默认英语；模板中的翻译通过响应式的 t 读取，语言切换时自动更新）
@@ -407,6 +446,22 @@
     let nowScore: SegmentScore | null = null;
     let bestToday: SegmentScore | null = null;
 
+    /** 未来小时逐小时指数（基于接口实际返回步长的数据） */
+    let hourlySegments: SegmentScore[] = [];
+    /** 接口实际返回的步长（小时），用于界面标注与窗口计算 */
+    $: hourlyStepH = hourlySegments.length >= 2 ? hourlyStepOf(hourlySegments) : 1;
+    /** 按实际步长取未来 12 个点：1h → 12 小时窗口，3h → 36 小时窗口 */
+    $: hourly12 = hourlySegments
+        .filter(s => s.ts >= Date.now() && s.ts <= Date.now() + hourlyStepH * 12 * HOUR)
+        .slice(0, 12);
+
+    /** Windy 时间条当前时刻（毫秒），用于计算“当前”钓鱼指数 */
+    let selectedTime = Date.now();
+    /** 所选时刻是否即“现在”（界面徽章用） */
+    let isNowTime = true;
+    /** store.on('timestamp') 订阅 id */
+    let timeListenerId = 0;
+
     /** 当前存在的恶劣条件（用于顶部警示） */
     interface CurrentSevere {
         kind: SevereKind;
@@ -441,8 +496,8 @@
             iconAnchor: [5, 5],
         });
         marker = L.marker([lat, lon], { draggable: true, icon }).addTo(map);
-        marker.on('dragend', (ev: L.LeafletMouseEvent) => {
-            const { lat: la, lng } = ev.target.getLatLng();
+        marker.on('dragend', (ev: L.DragEndEvent) => {
+            const { lat: la, lng } = (ev.target as L.Marker).getLatLng();
             setLocation({ lat: la, lon: lng });
         });
     };
@@ -464,16 +519,63 @@
         loadData(latLon.lat, latLon.lon);
     };
 
+    /** 计算评分序列的实际步长（小时），取中位数 */
+    const hourlyStepOf = (segs: SegmentScore[]): number => {
+        if (segs.length < 2) return 0;
+        const diffs = segs.slice(1).map((s, i) => s.ts - segs[i].ts);
+        const sorted = [...diffs].sort((a, b) => a - b);
+        return Math.round(sorted[Math.floor(sorted.length / 2)] / HOUR);
+    };
+
+    /**
+     * 根据 Windy 时间条当前时刻重算“当前”钓鱼指数、
+     * 所选时刻所在“日”的最佳时段以及恶劣天气警示。
+     */
+    const applySelectedTime = () => {
+        if (!air || segments.length === 0) return;
+        nowScore = closestSegment(segments, selectedTime);
+        isNowTime = !!nowScore && closestSegment(segments, Date.now())?.ts === nowScore.ts;
+
+        // 当前恶劣条件（用于顶部警示）
+        const nowSegIdx = nowScore ? segments.indexOf(nowScore) : -1;
+        currentSevere =
+            nowSegIdx >= 0
+                ? segments[nowSegIdx].severeKinds.map(kind => ({
+                      kind,
+                      end: severeEndTs(segments, kind, nowSegIdx),
+                  }))
+                : [];
+
+        // 所选时刻所在“日”的最佳时段
+        const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0;
+        const dayTs = selectedTime + offset * HOUR;
+        const dayKey =
+            new Date(dayTs).getUTCFullYear() * 10000 +
+            (new Date(dayTs).getUTCMonth() + 1) * 100 +
+            new Date(dayTs).getUTCDate();
+        const daySegs = segments.filter(seg => {
+            const d = new Date(seg.ts + offset * HOUR);
+            return (
+                d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate() ===
+                dayKey
+            );
+        });
+        bestToday = daySegs.length
+            ? daySegs.reduce((a, b) => (b.total > a.total ? b : a), daySegs[0])
+            : nowScore;
+    };
+
     /** 加载 Windy 点预报数据（大气 + 海浪 + 预警） */
     const loadData = async (lat: number, lon: number) => {
         const mySeq = ++requestSeq;
         loading = true;
         error = '';
         try {
-            const [airRes, wavesRes, alertsRes] = await Promise.allSettled([
+            const [airRes, wavesRes, alertsRes, hourlyRes] = await Promise.allSettled([
                 getPointForecastData(selectedModel, { lat, lon, days: 5, step: 3, source: 'detail' }, INCLUDE),
-                getPointForecastData<WavesDataHash2>(wavesModelOf(selectedModel), { lat, lon, days: 3, step: 3, source: 'detail' }, WAVES_INCLUDE),
+                getPointForecastData(wavesModelOf(selectedModel), { lat, lon, days: 3, step: 3, source: 'detail' }, WAVES_INCLUDE),
                 getCapAlertsSummary({ lat, lon }, 'detail'),
+                getPointForecastData(selectedModel, { lat, lon, days: 2, step: 1, source: 'detail' }, HOURLY_INCLUDE),
             ]);
 
             // 丢弃过期请求的结果
@@ -481,7 +583,7 @@
 
             // 先处理海浪数据，供指数计算中的大浪检测使用
             if (wavesRes.status === 'fulfilled' && wavesRes.value.data?.data) {
-                waves = wavesRes.value.data;
+                waves = wavesRes.value.data as unknown as WeatherDataPayload2<WavesDataHash2>;
             } else {
                 waves = null;
             }
@@ -491,41 +593,13 @@
                 if (!payload || !payload.data) {
                     throw new Error('未能获取该地点的预报数据（可能不在所选模型覆盖范围）');
                 }
-                air = payload;
+                air = payload as unknown as WeatherDataPayload2<DataHash2>;
 
-                // 计算各时段钓鱼指数（含恶劣条件安全扣分）
-                const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0;
+                // 计算各时段钓鱼指数（含恶劣条件安全扣分），并按时间条时刻定位“当前”指数
                 segments = computeSegments(air.data, air.celestial, waves?.data ?? null);
                 primes = primeWindows(air.celestial);
                 daily = computeDaily(air.data, segments, air.summary, air.celestial);
-                nowScore = closestSegment(segments, Date.now());
-
-                // 当前恶劣条件（用于顶部警示）
-                const nowSegIdx = nowScore ? segments.indexOf(nowScore) : -1;
-                currentSevere =
-                    nowSegIdx >= 0
-                        ? segments[nowSegIdx].severeKinds.map(kind => ({
-                              kind,
-                              end: severeEndTs(segments, kind, nowSegIdx),
-                          }))
-                        : [];
-
-                // 今日最佳时段
-                const todayTs = Date.now() + offset * HOUR;
-                const todayKey =
-                    new Date(todayTs).getUTCFullYear() * 10000 +
-                    (new Date(todayTs).getUTCMonth() + 1) * 100 +
-                    new Date(todayTs).getUTCDate();
-                const todaySegs = segments.filter(seg => {
-                    const d = new Date(seg.ts + offset * HOUR);
-                    return (
-                        d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate() ===
-                        todayKey
-                    );
-                });
-                bestToday = todaySegs.length
-                    ? todaySegs.reduce((a, b) => (b.total > a.total ? b : a), todaySegs[0])
-                    : nowScore;
+                applySelectedTime();
             } else {
                 throw new Error((airRes.reason as Error)?.message || '获取气象数据失败');
             }
@@ -535,6 +609,22 @@
             } else {
                 alerts = [];
             }
+
+            // 未来小时逐小时指数：仅用点预报，按实际步长展示 12 个点（1h → 12h，3h → 36h）
+            hourlySegments = [];
+            if (hourlyRes.status === 'fulfilled' && hourlyRes.value.data?.data) {
+                const pf = hourlyRes.value.data;
+                hourlySegments = computeSegments(
+                    pf.data as unknown as DataHash2,
+                    pf.celestial as unknown as Celestial | undefined,
+                    waves?.data ?? null,
+                );
+            }
+            console.log(
+                `[FishingAssistant] 未来小时指数：${hourlySegments.length} 个点，步长 ${hourlyStepOf(
+                    hourlySegments,
+                )}h`,
+            );
         } catch (e) {
             if (mySeq !== requestSeq) return;
             console.error('Fishing assistant error:', e);
@@ -586,7 +676,7 @@
     const wavesText = (x: number | null | undefined): string =>
         x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.waves.convertValue(x);
 
-    const pressureTrend = (idx: number): string => {
+    const pressureTrend = (idx: number, lang: Lang): string => {
         if (!air) return '--';
         const p = air.data.pressure[idx];
         const pp = idx > 0 ? air.data.pressure[idx - 1] : null;
@@ -620,21 +710,25 @@
         return `${Math.round(air.header.elevation)} m`;
     };
 
-    const primeScoreText = (p: PrimeWindow): string => {
+    const primeScoreText = (p: PrimeWindow, lang: Lang): string => {
         if (!segments.length) return '';
         const inWin = segments.filter(s => s.ts >= p.start && s.ts <= p.end);
         if (!inWin.length) return '';
         const best = inWin.reduce((a, b) => (b.total > a.total ? b : a), inWin[0]);
-        return t('primeEst', {
-            score: best.total,
-            level: levelLabel(scoreLevel(best.total).level, lang),
-        });
+        return _translate(
+            'primeEst',
+            {
+                score: best.total,
+                level: levelLabel(scoreLevel(best.total).level, lang),
+            },
+            lang,
+        );
     };
 
     const hasWavesData = (w: WeatherDataPayload2<WavesDataHash2>): boolean =>
         !!w.data && Array.isArray(w.data.waves) && w.data.waves.some(v => v !== null && !Number.isNaN(v));
 
-    const wavesSwell1Text = (idx: number): string => {
+    const wavesSwell1Text = (idx: number, lang: Lang): string => {
         if (!waves) return '--';
         const h = waves.data.swell1?.[idx];
         if (h === null || h === undefined || Number.isNaN(h)) return '--';
@@ -671,11 +765,10 @@
 
     /** 插件打开时：优先使用上下文菜单传入的地点，否则使用地图中心 */
     export const onopen = (params?: unknown) => {
-        const latLon = params as LatLon | undefined;
-        if (isValidLatLonObj(latLon)) {
+        if (isValidLatLonObj(params)) {
             const zoom = Math.max(8, map.getZoom());
-            map.setView([latLon.lat, latLon.lon], zoom, { animate: true });
-            setLocation({ lat: latLon.lat, lon: latLon.lon });
+            map.setView([params.lat, params.lon], zoom, { animate: true });
+            setLocation({ lat: params.lat, lon: params.lon });
         } else {
             const c = map.getCenter();
             setLocation({ lat: c.lat, lon: c.lng });
@@ -689,10 +782,25 @@
         scListenerId = singleclick.on(name, (ev: LatLon) => {
             setLocation(ev);
         });
+
+        // 跟随 Windy 时间条：初始取时间条当前时刻，之后监听变化实时重算
+        try {
+            const ts = store.get('timestamp');
+            if (typeof ts === 'number' && !Number.isNaN(ts)) {
+                selectedTime = ts;
+            }
+        } catch {
+            /* store 未就绪时忽略 */
+        }
+        timeListenerId = store.on('timestamp', (ts: number) => {
+            selectedTime = ts;
+            applySelectedTime();
+        });
     });
 
     onDestroy(() => {
         singleclick.off(scListenerId);
+        store.off(timeListenerId);
         hideMarker();
     });
 </script>
@@ -833,6 +941,39 @@
             color: #aeb9c4;
             letter-spacing: 0.5px;
             margin-bottom: 10px;
+
+            .fa-time-chip {
+                display: inline-block;
+                margin-left: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                color: #7ec8ff;
+                background: rgba(62, 135, 255, 0.14);
+                border: 1px solid rgba(62, 135, 255, 0.35);
+                border-radius: 999px;
+                padding: 1px 8px;
+                vertical-align: middle;
+            }
+
+            .fa-fcst-badge {
+                display: inline-block;
+                margin-left: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                color: #f1c40f;
+                background: rgba(241, 196, 15, 0.12);
+                border: 1px solid rgba(241, 196, 15, 0.35);
+                border-radius: 999px;
+                padding: 1px 8px;
+                vertical-align: middle;
+            }
+
+            .fa-step-note {
+                font-size: 11px;
+                font-weight: 400;
+                color: #7f8b99;
+                margin-left: 6px;
+            }
         }
     }
 
@@ -1137,6 +1278,65 @@
                 font-size: 11px;
                 color: #5c6b7a;
                 margin-top: 2px;
+            }
+        }
+    }
+
+    .fa-hours {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+        gap: 8px;
+
+        .fa-hour {
+            background: #12161d;
+            border-radius: 8px;
+            padding: 8px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+
+            &--now {
+                border: 1px solid #2a3b4d;
+            }
+
+            .fa-hour-time {
+                font-size: 12px;
+                font-weight: 700;
+                color: #fff;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .fa-hour-icon {
+                font-size: 18px;
+                line-height: 1;
+            }
+
+            .fa-hour-score {
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                line-height: 1;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .fa-hour-level {
+                font-size: 10px;
+                line-height: 1;
+            }
+
+            .fa-hour-bar {
+                width: 100%;
+                height: 4px;
+                background: #232b38;
+                border-radius: 2px;
+                overflow: hidden;
+
+                .fa-hour-fill {
+                    height: 100%;
+                    border-radius: 2px;
+                    transition: width 0.4s ease;
+                }
             }
         }
     }

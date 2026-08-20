@@ -1,6 +1,6 @@
 {
     "name": "windy-plugin-fishing-assistant",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A weather assistant for anglers: current & future fishing index, conditions, prime time, waves and alerts — as a Windy plugin. English & 简体中文.",
     "main": "dist/plugin.min.js",
     "type": "module",
