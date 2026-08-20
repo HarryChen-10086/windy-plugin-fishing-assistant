@@ -16,7 +16,9 @@ import type {
     DataHash2,
     MoonPhase,
     NumValue,
+    SevereKind,
     SummaryDay2,
+    WavesDataHash2,
     WeatherConditionIcon,
 } from './types';
 import { MoonPhase as MoonPhaseEnum, WeatherConditionIcon as IconEnum } from './types';
@@ -27,7 +29,7 @@ export interface SegmentScore {
     ts: number;
     /** 当地时间（0-23 时） */
     hour: number;
-    /** 总分 0-100 */
+    /** 总分 0-100（含安全扣分后的最终分） */
     total: number;
     /** 气压得分（0-25） */
     pressure: number;
@@ -41,6 +43,10 @@ export interface SegmentScore {
     time: number;
     /** 月相得分（0-10） */
     moon: number;
+    /** 恶劣条件安全扣分（<=0，0 表示无扣分） */
+    safety: number;
+    /** 该时段存在的恶劣条件 */
+    severeKinds: SevereKind[];
     /** 天气图标码 */
     icon: WeatherConditionIcon;
 }
@@ -246,10 +252,94 @@ const scoreMoon = (phase: MoonPhase): number => {
     }
 };
 
-/** 计算整个时间序列中每个时间步的钓鱼指数 */
+/** 恶劣天气图标集合 */
+const THUNDER_ICONS: number[] = [14, 15, 16, 21, 23, 24];
+const SNOW_ICONS: number[] = [8, 9, 10, 11, 12, 13];
+const FOG_ICONS: number[] = [17, 22];
+
+/** 各恶劣条件对应的安全扣分（负分） */
+const SAFETY_PENALTY: Record<SevereKind, number> = {
+    thunder: -30,
+    wind: -20,
+    waves: -20,
+    rain: -15,
+    snow: -15,
+    temp: -10,
+    fog: -5,
+};
+
+/** 判断单个时间步是否存在恶劣条件 */
+export const severeKindsAt = (
+    data: DataHash2,
+    index: number,
+    waves: WavesDataHash2 | null | undefined,
+    wavesIndex: number | null,
+): SevereKind[] => {
+    const kinds: SevereKind[] = [];
+    const icon = data.icon[index];
+    const precip = data.precipAmount[index];
+    const snow = data.precipSnowAmount[index];
+    const wind = data.wind[index];
+    const temp = data.temperature[index];
+
+    if (THUNDER_ICONS.includes(icon)) kinds.push('thunder');
+    if (precip !== null && precip !== undefined && !Number.isNaN(precip) && precip >= 8) {
+        kinds.push('rain');
+    }
+    if (snow !== null && snow !== undefined && !Number.isNaN(snow) && snow >= 5) {
+        kinds.push('snow');
+    }
+    if (SNOW_ICONS.includes(icon)) kinds.push('snow');
+    if (wind !== null && wind !== undefined && !Number.isNaN(wind) && wind >= 10.8) {
+        kinds.push('wind');
+    }
+    if (temp !== null && temp !== undefined && !Number.isNaN(temp)) {
+        const c = temp - 273.15;
+        if (c <= -15 || c >= 38) kinds.push('temp');
+    }
+    if (FOG_ICONS.includes(icon)) kinds.push('fog');
+    if (waves && wavesIndex !== null) {
+        const w = waves.waves[wavesIndex];
+        if (w !== null && w !== undefined && !Number.isNaN(w) && w >= 2.5) {
+            kinds.push('waves');
+        }
+    }
+    return kinds;
+};
+
+/** 计算某恶劣条件预计结束的时间戳（持续到预报期末则为 null） */
+export const severeEndTs = (
+    segments: SegmentScore[],
+    kind: SevereKind,
+    startIdx: number,
+): number | null => {
+    for (let i = startIdx + 1; i < segments.length; i++) {
+        if (!segments[i].severeKinds.includes(kind)) {
+            return segments[i].ts;
+        }
+    }
+    return null;
+};
+
+/** 在时间戳数组中查找最接近给定时刻的下标 */
+export const closestIndex = (tsArr: number[], ts: number): number => {
+    let best = 0;
+    let bestDiff = Infinity;
+    tsArr.forEach((t, i) => {
+        const d = Math.abs(t - ts);
+        if (d < bestDiff) {
+            bestDiff = d;
+            best = i;
+        }
+    });
+    return best;
+};
+
+/** 计算整个时间序列中每个时间步的钓鱼指数（含恶劣条件安全扣分） */
 export const computeSegments = (
     data: DataHash2,
     celestial: Celestial | undefined,
+    waves?: WavesDataHash2 | null,
 ): SegmentScore[] => {
     const n = data.ts.length;
     const result: SegmentScore[] = [];
@@ -261,17 +351,28 @@ export const computeSegments = (
         const temp = scoreTemp(data.temperature[i]);
         const time = scoreTimeOfDay(data.ts[i], data.isDay[i], celestial);
         const moon = scoreMoon(data.moonPhase[i]);
+        const base = pressure + weather + wind + temp + time + moon;
+
+        // 恶劣条件识别与安全扣分
+        const wIdx = waves ? closestIndex(waves.ts, data.ts[i]) : null;
+        const severeKinds = severeKindsAt(data, i, waves, wIdx);
+        const penalty = Math.max(
+            -50,
+            severeKinds.reduce((sum, k) => sum + SAFETY_PENALTY[k], 0),
+        );
 
         result.push({
             ts: data.ts[i],
             hour: data.hour[i],
-            total: Math.round(pressure + weather + wind + temp + time + moon),
+            total: Math.max(0, Math.round(base + penalty)),
             pressure,
             weather,
             wind,
             temp,
             time,
             moon,
+            safety: penalty,
+            severeKinds,
             icon: data.icon[i],
         });
     }
