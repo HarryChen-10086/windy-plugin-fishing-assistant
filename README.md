@@ -3,10 +3,9 @@
 > **Language**: English · [**简体中文**](./README_zh.md)
 
 A Windy plugin for anglers: it calculates the **current and future fishing index** for a
-chosen spot and shows all the weather & sea conditions anglers care about. All data comes
-from **Windy's free point-forecast client API** — no paid API Key, no third-party data.
-
-**Plugin docs: [https://docs.windy-plugins.com/](https://docs.windy-plugins.com/)**
+chosen spot and shows the weather & sea conditions anglers care about — pressure trend,
+wind, temperature, humidity, waves, sea surface temperature, sunrise/sunset, prime-time
+windows and weather alerts.
 
 ## Features
 
@@ -14,6 +13,8 @@ from **Windy's free point-forecast client API** — no paid API Key, no third-pa
   - Current index (from the forecast segment closest to now)
   - Next 5 days daily index (best segment + daily average)
   - Visual per-factor breakdown
+  - Safety penalty: the index drops automatically under adverse conditions (heavy rain, thunderstorm, strong wind, big waves, etc.)
+- **Adverse-weather banner** — when severe conditions are active, a warning banner at the top lists the conditions and the estimated end time
 - **Current conditions** — air temp, feels-like, wind/gust, direction, pressure & trend, relative humidity, cloud cover, precipitation, moon phase, elevation
 - **Sunrise/Sunset & Prime Time** — auto-calculates morning (2h before → 1.5h after sunrise) and evening (3h before → 1h after sunset) golden windows with an estimated index
 - **Waves & Sea State** (shown near the sea) — significant wave height, direction, period, swell, sea surface temperature, wave power
@@ -55,14 +56,14 @@ Once opened:
 src/
 ├── pluginConfig.ts      # Plugin configuration (name, title, icon, routing…)
 ├── plugin.svelte        # Main UI (Svelte component)
-├── fishingIndex.ts      # Fishing-index scoring logic (pure functions)
+├── fishingIndex.ts      # Fishing-index scoring & severe-weather logic
 ├── i18n.ts              # en/zh translations & language detection
 └── types.ts             # Local typings for Windy point-forecast data
 ```
 
 ## Data Sources
 
-All data comes from Windy's free client API via the `@windy/fetch` module:
+Data comes from Windy's point-forecast client API via the `@windy/fetch` module:
 
 | Data | API |
 | --- | --- |
@@ -74,8 +75,6 @@ All data comes from Windy's free client API via the `@windy/fetch` module:
 | Weather alerts | `getCapAlertsSummary({lat, lon})` |
 | Unit conversion | `@windy/metrics` (follows the user's Windy units) |
 
-> All of the above are free client APIs available to plugins — no paid Windy API Key required.
-
 ## Fishing Index Scoring
 
 | Factor | Max | Notes |
@@ -86,14 +85,28 @@ All data comes from Windy's free client API via the `@windy/fetch` module:
 | Temperature | 15 | 10–25°C most comfortable; below 0°C or above 35°C penalized |
 | Time of day | 15 | Full marks around sunrise/sunset prime windows |
 | Moon phase | 10 | Around new moon & full moon generally better |
+| Safety penalty | — | −30 thunderstorm · −20 wind/waves · −15 rain/snow · −10 extreme temp · −5 fog |
 
 Levels: **≥80 Excellent · ≥60 Good · ≥40 Fair · ≥25 Poor · <25 Very poor**.
 
 > ⚠️ The index is for reference only — actual fishing also depends on water body, species, season, etc. Always check local conditions.
 
+## Beta & Contribution
+
+> 🧪 This project is currently in **beta**. If you find a bug or have a suggestion, please
+> report it via [Issues](https://github.com/HarryChen-10086/windy-plugin-fishing-assistant/issues).
+> Contributions are welcome!
+
+- Repository: <https://github.com/HarryChen-10086/windy-plugin-fishing-assistant>
+
+## License
+
+This project is open source under the [MIT License](./LICENSE).
+
 ## CHANGELOG
 
 -   1.0.0
     -   Initial release.
+
 
 

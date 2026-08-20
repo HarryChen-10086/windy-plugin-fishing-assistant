@@ -7,8 +7,8 @@ const config: ExternalPluginConfig = {
     title: 'Windy Fishing Assistant',
     description:
         'A weather assistant for anglers: calculates the current and future fishing index from Windy data, with pressure trend, wind, temperature, humidity, waves, sea surface temperature, sunrise/sunset and prime-time windows. Supports English & 简体中文.',
-    author: 'Fishing Assistant',
-    repository: 'https://github.com/windycom/windy-plugin-template',
+    author: 'HarryChen-10086',
+    repository: 'https://github.com/HarryChen-10086/windy-plugin-fishing-assistant',
     desktopUI: 'rhpane',
     desktopWidth: 540,
     mobileUI: 'fullscreen',

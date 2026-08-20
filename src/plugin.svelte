@@ -273,6 +273,28 @@
             {t('footer', { model: air.header.model.toUpperCase(), time: updateText() })}
         </div>
     {/if}
+
+    <!-- 测试版横幅（页面最下方） -->
+    <div class="fa-beta">
+        <div class="fa-beta-title">🧪 Beta</div>
+        <div class="fa-beta-text">{t('betaText')}</div>
+        <a
+            class="fa-beta-link"
+            href="https://github.com/HarryChen-10086/windy-plugin-fishing-assistant/issues"
+            target="_blank"
+            rel="noreferrer"
+        >
+            {t('betaLink')}
+        </a>
+        <a
+            class="fa-beta-repo"
+            href="https://github.com/HarryChen-10086/windy-plugin-fishing-assistant"
+            target="_blank"
+            rel="noreferrer"
+        >
+            {t('betaRepoLabel')}
+        </a>
+    </div>
 </section>
 
 <script lang="ts">
@@ -1190,6 +1212,44 @@
         color: #5c6b7a;
         line-height: 1.6;
         padding: 4px 4px 10px;
+    }
+
+    .fa-beta {
+        background: #1b2533;
+        border: 1px dashed #3a4c63;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-top: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .fa-beta-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f7c948;
+        }
+
+        .fa-beta-text {
+            font-size: 12px;
+            color: #aeb9c4;
+            line-height: 1.6;
+        }
+
+        .fa-beta-link,
+        .fa-beta-repo {
+            font-size: 13px;
+            color: #3d87ff;
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+
+        .fa-beta-repo {
+            font-size: 12px;
+        }
     }
 
     :global(.fa-marker) {
