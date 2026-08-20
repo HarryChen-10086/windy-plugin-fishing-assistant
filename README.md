@@ -11,6 +11,7 @@ windows and weather alerts.
 
 - **Fishing Index (0–100)** — weighted from six factors: pressure trend, weather, wind, temperature, time of day, and moon phase
   - Current index (from the forecast segment closest to now)
+  - Next-hours hourly index (12 points: 12h at 1-hour steps, 36h at 3-hour steps)
   - Next 5 days daily index (best segment + daily average)
   - Visual per-factor breakdown
   - Safety penalty: the index drops automatically under adverse conditions (heavy rain, thunderstorm, strong wind, big waves, etc.)

@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "baseUrl": ".",
+        "ignoreDeprecations": "6.0",
         "module": "ESNext",
         "lib": ["es2022", "webworker", "DOM"],
         "noImplicitAny": true,
@@ -19,6 +20,7 @@
         "noImplicitThis": true,
         "noFallthroughCasesInSwitch": true,
         "moduleResolution": "node",
+        "skipLibCheck": true,
         "strictNullChecks": true,
         "strictBindCallApply": true,
         "forceConsistentCasingInFileNames": true,

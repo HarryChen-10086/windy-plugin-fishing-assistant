@@ -60,6 +60,8 @@ const en = {
     primeEvening: 'Evening prime time',
     primeEst: 'Est. index {score} ({level})',
     // 未来几天
+    nextHours: 'Next Hours Fishing Index',
+    hourlyStep: '{h}h steps',
     nextDays: 'Next Days Fishing Index',
     today: 'Today',
     dayLabel: '{day}',
@@ -137,6 +139,8 @@ const zh: Record<keyof typeof en, string> = {
     primeMorning: '清晨黄金时段',
     primeEvening: '傍晚黄金时段',
     primeEst: '预计指数 {score}（{level}）',
+    nextHours: '未来小时钓鱼指数',
+    hourlyStep: '{h}h 步长',
     nextDays: '未来几天钓鱼指数',
     today: '今天',
     dayLabel: '{day}日',
