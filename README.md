@@ -11,6 +11,7 @@ windows and weather alerts.
 
 - **Fishing Index (0–100)** — weighted from six factors: pressure trend, weather, wind, temperature, time of day, and moon phase
   - Current index (from the forecast segment closest to now)
+  - Next-hours hourly index (12 points: 12h at 1-hour steps, 36h at 3-hour steps)
   - Next 5 days daily index (best segment + daily average)
   - Visual per-factor breakdown
   - Safety penalty: the index drops automatically under adverse conditions (heavy rain, thunderstorm, strong wind, big waves, etc.)
@@ -32,7 +33,15 @@ English is the default. The plugin also supports **简体中文**:
 - A **🌐** button in the toolbar toggles between English and Chinese.
 - If your Windy/browser language is **Simplified Chinese**, the plugin switches to Chinese automatically on open (you can still change it manually).
 
-## Quick Start (For Developers)
+## Usage
+
+Once opened:
+- The **map center** is used as the fishing spot by default, or open it from the map's **right-click context menu** (passes the clicked position).
+- Click anywhere on the map to change the spot, or drag the pulsing marker.
+- Switch the forecast model at the top, and use "Locate me" for your GPS position.
+- Move the Windy time slider to preview the index at other times — index, breakdown, alerts and best-of-day update live (🕐 shows the selected time, "Forecast" badge when not "now").
+
+## Open in Developer Mode(For Developers)
 
 ```bash
 npm i
@@ -44,11 +53,6 @@ Then open <https://www.windy.com/developer-mode> and load the plugin:
 ```
 https://localhost:9999/plugin.js
 ```
-
-Once opened:
-- The **map center** is used as the fishing spot by default, or open it from the map's **right-click context menu** (passes the clicked position).
-- Click anywhere on the map to change the spot, or drag the pulsing marker.
-- Switch the forecast model at the top, and use "Locate me" for your GPS position.
 
 ## Project Structure
 
@@ -105,6 +109,11 @@ This project is open source under the [MIT License](./LICENSE).
 
 ## CHANGELOG
 
+-   1.0.1
+    -   Fishing index now syncs live with the Windy time slider (shows a "Forecast" badge when not at "now").
+    -   New "Next Hours" hourly index module (12 points: 12h at 1-hour steps, or 36h at 3-hour steps).
+    -   Fixed prime-time index not updating when switching language.
+    -   Adverse-weather "estimated end" now shows date & time (M/D HH:MM).
 -   1.0.0
     -   Initial release.
 
