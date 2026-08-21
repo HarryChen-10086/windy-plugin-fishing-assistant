@@ -76,6 +76,8 @@ export interface PrimeWindow {
     /** morning | evening，用于模板中按语言取标签 */
     kind: 'morning' | 'evening';
     emoji: string;
+    /** 窗口所在本地日期（如 "8/20"） */
+    date: string;
     start: number;
     end: number;
 }
@@ -456,14 +458,27 @@ export const computeDaily = (
     return days;
 };
 
-/** 黄金时段（日出/日落前后） */
+/** 黄金时段（当前日日出/日落前后），date 为该窗口所在日期 */
 export const primeWindows = (celestial: Celestial | undefined): PrimeWindow[] => {
     if (!celestial) return [];
+    const offset = celestial.TZoffset ?? 0;
     const sunrise = celestial.sunriseTs;
     const sunset = celestial.sunsetTs;
     return [
-        { kind: 'morning', emoji: '🌅', start: sunrise - 2 * HOUR, end: sunrise + 1.5 * HOUR },
-        { kind: 'evening', emoji: '🌇', start: sunset - 3 * HOUR, end: sunset + 1 * HOUR },
+        {
+            kind: 'morning',
+            emoji: '🌅',
+            date: formatLocalDate(sunrise, offset),
+            start: sunrise - 2 * HOUR,
+            end: sunrise + 1.5 * HOUR,
+        },
+        {
+            kind: 'evening',
+            emoji: '🌇',
+            date: formatLocalDate(sunset, offset),
+            start: sunset - 3 * HOUR,
+            end: sunset + 1 * HOUR,
+        },
     ];
 };
 
@@ -494,6 +509,12 @@ export const formatLocalDateTime = (ts: number, offsetHours: number): string => 
     const hh = String(d.getUTCHours()).padStart(2, '0');
     const mm = String(d.getUTCMinutes()).padStart(2, '0');
     return `${month}/${day} ${hh}:${mm}`;
+};
+
+/** 将时间戳格式化为当地时间 "M/D"（如 8/20） */
+export const formatLocalDate = (ts: number, offsetHours: number): string => {
+    const d = new Date(ts + offsetHours * HOUR);
+    return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 };
 
 /** 找到最接近给定时间戳的评分 */
