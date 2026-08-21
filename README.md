@@ -6,6 +6,11 @@ A Windy plugin for anglers: it calculates the **current and future fishing index
 chosen spot and shows the weather & sea conditions anglers care about — pressure trend,
 wind, temperature, humidity, waves, sea surface temperature, sunrise/sunset, prime-time
 windows and weather alerts.
+## Screenshots
+![screenshot](src\screenshot.png)
+
+
+#
 
 ## Features
 
