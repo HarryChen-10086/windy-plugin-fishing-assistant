@@ -7,10 +7,25 @@ chosen spot and shows the weather & sea conditions anglers care about — pressu
 wind, temperature, humidity, waves, sea surface temperature, sunrise/sunset, prime-time
 windows and weather alerts.
 ## Screenshots
-![screenshot](src\screenshot.png)
+![screenshot](src/screenshot.png)
 
+## Installation
 
-#
+### Option 1: Load from URL
+1. Open [Windy.com](https://www.windy.com)
+2. Click the menu (≡) → **Install Windy plugins** → **Load plugin from URL**
+3. Paste the following URL and confirm:
+
+   ```
+   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.1/plugin.min.js
+   ```
+
+### Option 2: Install from Marketplace
+1. Open Windy and go to the **Plugin Marketplace**
+2. Find **"Windy Fishing Assistant"**
+3. Click **Install**
+
+After installation, the plugin will appear in the menu under **More plugins** or in the right-click context menu on the map.
 
 ## Features
 
