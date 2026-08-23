@@ -7,7 +7,25 @@
 黄金时段与天气预警。
 
 ## 截图
-![screenshot](src\screenshot.png)
+![screenshot](src/screenshot.png)
+
+## 安装
+
+### 方式一：从 URL 加载
+1. 打开 [Windy.com](https://www.windy.com)
+2. 点击菜单 (≡) → **安装 Windy 插件** → **从 URL 直接加载插件**
+3. 粘贴以下链接并确认：
+
+   ```
+   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.1/plugin.min.js
+   ```
+
+### 方式二：从插件市场安装
+1. 打开 Windy，进入**插件市场**
+2. 找到 **"Windy Fishing Assistant"**
+3. 点击**安装**
+
+安装完成后，插件会出现在菜单的 **更多插件** 中，也可在地图右键菜单中快速打开。
 
 ## 功能特性
 
