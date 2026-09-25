@@ -113,7 +113,7 @@ getPointForecastData(model, { lat, lon, days, step, source }, includeObj?, httpO
 - i18n 模块：`src/i18n.ts`；`Lang = 'en' | 'zh'`（定义在 `src/types.ts`）
 - 语言检测：`detectLang()` 使用 `store.get('usedLang') || store.get('lang')`（`'zh'` 表示简体中文），回退 `navigator.language`
 - 语言持久化：localStorage key `windy-fishing-assistant-lang`
-- 插件默认语言为英语（pluginConfig `title = 'Windy Fishing Assistant'`），检测到中文自动切换
+- 插件默认语言为英语（pluginConfig `title = 'Fishing Index'`，2026-09-25 由 `Windy Fishing Assistant` 改名；插件 id `windy-plugin-fishing-assistant` 不变），检测到中文自动切换
 - README.md（英文）+ README_zh.md（中文）互链
 
 ### 2.1 Svelte 语言切换响应式技巧
