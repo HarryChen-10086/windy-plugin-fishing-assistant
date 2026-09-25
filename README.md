@@ -1,4 +1,4 @@
-# 🎣 Windy Fishing Assistant Plugin
+# 🎣 Fishing Index Plugin
 
 > **Language**: English · [**简体中文**](./README_zh.md)
 
@@ -22,7 +22,7 @@ windows and weather alerts.
 
 ### Option 2: Install from Marketplace
 1. Open Windy and go to the **Plugin Marketplace**
-2. Find **"Windy Fishing Assistant"**
+2. Find **"Fishing Index"**
 3. Click **Install**
 
 After installation, the plugin will appear in the menu under **More plugins** or in the right-click context menu on the map.
