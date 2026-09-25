@@ -129,6 +129,8 @@ This project is open source under the [MIT License](./LICENSE).
 
 ## CHANGELOG
 
+-   1.0.2
+    -   Modified plugin name and screenshot.
 -   1.0.1
     -   Fishing index now syncs live with the Windy time slider (shows a "Forecast" badge when not at "now").
     -   New "Next Hours" hourly index module (12 points: 12h at 1-hour steps, or 36h at 3-hour steps).

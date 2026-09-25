@@ -2,7 +2,7 @@ import type { ExternalPluginConfig } from '@windy/interfaces';
 
 const config: ExternalPluginConfig = {
     name: 'windy-plugin-fishing-assistant',
-    version: '1.0.1',
+    version: '1.0.2',
     icon: '🎣',
     title: 'Fishing Index',
     description:
