@@ -17,12 +17,12 @@ windows and weather alerts.
 3. Paste the following URL and confirm:
 
    ```
-   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.1/plugin.min.js
+   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.2/plugin.min.js
    ```
 
 ### Option 2: Install from Marketplace
-1. Open Windy and go to the **Plugin Marketplace**
-2. Find **"Fishing Index"**
+1. Open Windy，click the menu (≡) → **Install Windy plugins**
+2. Scroll down to find **"Fishing Index"**
 3. Click **Install**
 
 After installation, the plugin will appear in the menu under **More plugins** or in the right-click context menu on the map.

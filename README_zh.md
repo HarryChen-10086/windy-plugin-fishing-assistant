@@ -17,12 +17,12 @@
 3. 粘贴以下链接并确认：
 
    ```
-   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.1/plugin.min.js
+   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.2/plugin.min.js
    ```
 
 ### 方式二：从插件市场安装
-1. 打开 Windy，进入**插件市场**
-2. 找到 **"Fishing Index"**
+1. 打开 Windy，点击菜单 (≡) → **安装 Windy 插件**
+2. 下滑找到 **"Fishing Index"**
 3. 点击**安装**
 
 安装完成后，插件会出现在菜单的 **更多插件** 中，也可在地图右键菜单中快速打开。
