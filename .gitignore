@@ -11,4 +11,3 @@ package-lock.json
 dist/*
 .specstory
 dev_files
-AGENT_MEMORIES.md
