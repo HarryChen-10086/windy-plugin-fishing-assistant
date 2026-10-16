@@ -19,6 +19,7 @@
         "noImplicitThis": true,
         "noFallthroughCasesInSwitch": true,
         "moduleResolution": "node",
+        "skipLibCheck": true,
         "strictNullChecks": true,
         "strictBindCallApply": true,
         "forceConsistentCasingInFileNames": true,
