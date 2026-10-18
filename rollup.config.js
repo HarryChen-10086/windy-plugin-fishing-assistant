@@ -11,7 +11,9 @@ import { transformCodeToESMPlugin, keyPEM, certificatePEM } from '@windycom/plug
 
 import svelteConfig from './svelte.config.js';
 
-const useSourceMaps = true;
+// 生产构建（SERVE=false，由 npm run build 传入）不产出 sourcemap：
+// .map 有 600 KB 左右，占了发布包的一大半，且线上加载 plugin.min.js 时用不到
+const useSourceMaps = process.env.SERVE !== 'false';
 
 const buildConfigurations = {
     src: {
@@ -29,7 +31,7 @@ export default {
         {
             file: `dist/${out}.js`,
             format: 'module',
-            sourcemap: true,
+            sourcemap: useSourceMaps,
         },
         {
             file: `dist/${out}.min.js`,
