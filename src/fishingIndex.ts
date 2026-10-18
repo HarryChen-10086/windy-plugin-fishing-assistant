@@ -92,6 +92,32 @@ const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
 
 /**
+ * 基准步长（小时）：气压差、降水量、暴雨阈值的打分口径都是按 3 小时累积量标定的。
+ *
+ * Windy 的点预报既能取 3h 步长（5 天详情），也能取 1h 步长（未来小时），
+ * 同一个累计量在不同步长下含义不同（8mm/3h 是中雨，8mm/1h 是暴雨），
+ * 因此所有「累计量阈值」都必须先归一到 3h 等效量再比较。
+ */
+export const BASE_STEP_HOURS = 3;
+
+/** 把某个步长的累计量换算成 3h 等效量 */
+const toBaseStep = (amount: number, stepHours: number): number =>
+    amount * (BASE_STEP_HOURS / stepHours);
+
+/** 从时间序列自推实际步长（小时，取相邻差中位数），推不出来时按 3h 处理 */
+export const stepHoursOf = (ts: ReadonlyArray<number>): number => {
+    if (ts.length < 2) {return BASE_STEP_HOURS;}
+    const diffs = ts
+        .slice(1)
+        .map((t, i) => t - ts[i])
+        .filter(d => d > 0)
+        .sort((a, b) => a - b);
+    if (!diffs.length) {return BASE_STEP_HOURS;}
+    const median = diffs[Math.floor(diffs.length / 2)] / HOUR;
+    return median > 0 ? median : BASE_STEP_HOURS;
+};
+
+/**
  * 指数等级划分（语言无关，只返回等级与颜色）。
  * 等级文字请通过 i18n 的 levelLabel(level, lang) 获取。
  */
@@ -103,8 +129,17 @@ export const scoreLevel = (score: number): ScoreLevel => {
     return { level: 4, color: '#e74c3c' };
 };
 
-/** 气压趋势得分（0-25）：比较相邻两个时间步的气压差（Pa） */
-export const scorePressure = (pressure: NumValue, prevPressure: NumValue): number => {
+/**
+ * 气压趋势得分（0-25）：比较相邻两个时间步的气压差（Pa）。
+ *
+ * 阈值按 3h 步长标定，`stepHours` 用于把其它步长的压差归一到 3h 等效量，
+ * 这样 1h 与 3h 两条数据链路算出来的分数口径一致。
+ */
+export const scorePressure = (
+    pressure: NumValue,
+    prevPressure: NumValue,
+    stepHours: number = BASE_STEP_HOURS,
+): number => {
     if (pressure === null || pressure === undefined || Number.isNaN(pressure)) {return 10;}
     if (prevPressure === null || prevPressure === undefined || Number.isNaN(prevPressure)) {
         // 无历史数据，仅看绝对值
@@ -113,7 +148,7 @@ export const scorePressure = (pressure: NumValue, prevPressure: NumValue): numbe
         if (absHpa >= 1000 && absHpa <= 1030) {return 15;}
         return 10;
     }
-    const diff = Math.abs(pressure - prevPressure); // Pa
+    const diff = toBaseStep(Math.abs(pressure - prevPressure), stepHours); // Pa / 3h 等效
     const abs = pressure / 100; // hPa
 
     let trend = 0;
@@ -131,8 +166,12 @@ export const scorePressure = (pressure: NumValue, prevPressure: NumValue): numbe
     return Math.min(25, trend + absScore);
 };
 
-/** 天气状况得分（0-20） */
-export const scoreWeather = (icon: WeatherConditionIcon, precip: NumValue): number => {
+/** 天气状况得分（0-20）：降水量阈值按 3h 累计量标定，用 stepHours 归一步长 */
+export const scoreWeather = (
+    icon: WeatherConditionIcon,
+    precip: NumValue,
+    stepHours: number = BASE_STEP_HOURS,
+): number => {
     let base = 10;
     switch (icon) {
         case IconEnum.Clear:
@@ -178,11 +217,12 @@ export const scoreWeather = (icon: WeatherConditionIcon, precip: NumValue): numb
         default:
             base = 10;
     }
-    // 降水量过大再扣分
+    // 降水量过大再扣分（换算成 3h 等效量，避免 1h/3h 口径不一致）
     if (precip !== null && precip !== undefined && !Number.isNaN(precip)) {
-        if (precip > 10) {base = Math.min(base, 4);}
-        else if (precip > 4) {base = Math.min(base, 8);}
-        else if (precip > 1) {base = Math.min(base, 13);}
+        const precip3h = toBaseStep(precip, stepHours);
+        if (precip3h > 10) {base = Math.min(base, 4);}
+        else if (precip3h > 4) {base = Math.min(base, 8);}
+        else if (precip3h > 1) {base = Math.min(base, 13);}
     }
     return Math.max(0, Math.min(20, base));
 };
@@ -279,12 +319,13 @@ const SAFETY_PENALTY: Record<SevereKind, number> = {
     fog: -5,
 };
 
-/** 判断单个时间步是否存在恶劣条件 */
+/** 判断单个时间步是否存在恶劣条件（降水/降雪阈值按 3h 累计量标定，用 stepHours 归一步长） */
 export const severeKindsAt = (
     data: DataHash2,
     index: number,
     waves: WavesDataHash2 | null | undefined,
     wavesIndex: number | null,
+    stepHours: number = BASE_STEP_HOURS,
 ): SevereKind[] => {
     const kinds: SevereKind[] = [];
     const icon = data.icon[index];
@@ -294,10 +335,10 @@ export const severeKindsAt = (
     const temp = data.temperature[index];
 
     if (THUNDER_ICONS.includes(icon)) {kinds.push('thunder');}
-    if (precip !== null && precip !== undefined && !Number.isNaN(precip) && precip >= 8) {
+    if (precip !== null && precip !== undefined && !Number.isNaN(precip) && toBaseStep(precip, stepHours) >= 8) {
         kinds.push('rain');
     }
-    if (snow !== null && snow !== undefined && !Number.isNaN(snow) && snow >= 5) {
+    if (snow !== null && snow !== undefined && !Number.isNaN(snow) && toBaseStep(snow, stepHours) >= 5) {
         kinds.push('snow');
     }
     if (SNOW_ICONS.includes(icon)) {kinds.push('snow');}
@@ -355,10 +396,13 @@ export const computeSegments = (
 ): SegmentScore[] => {
     const n = data.ts.length;
     const result: SegmentScore[] = [];
+    // 步长从数据自推：3h（5 天详情）与 1h（未来小时）两条链路共用本函数，
+    // 所有累计量阈值都要先归一，否则同一段天气会算出不同分数
+    const stepHours = stepHoursOf(data.ts);
     for (let i = 0; i < n; i++) {
         const prevPressure = i > 0 ? data.pressure[i - 1] : null;
-        const pressure = scorePressure(data.pressure[i], prevPressure);
-        const weather = scoreWeather(data.icon[i], data.precipAmount[i]);
+        const pressure = scorePressure(data.pressure[i], prevPressure, stepHours);
+        const weather = scoreWeather(data.icon[i], data.precipAmount[i], stepHours);
         const wind = scoreWind(data.wind[i]);
         const temp = scoreTemp(data.temperature[i]);
         const time = scoreTimeOfDay(data.ts[i], data.isDay[i], celestial);
@@ -367,7 +411,7 @@ export const computeSegments = (
 
         // 恶劣条件识别与安全扣分
         const wIdx = waves ? closestIndex(waves.ts, data.ts[i]) : null;
-        const severeKinds = severeKindsAt(data, i, waves, wIdx);
+        const severeKinds = severeKindsAt(data, i, waves, wIdx, stepHours);
         const penalty = Math.max(
             -50,
             severeKinds.reduce((sum, k) => sum + SAFETY_PENALTY[k], 0),
