@@ -129,6 +129,15 @@ This project is open source under the [MIT License](./LICENSE).
 
 ## CHANGELOG
 
+-   1.1.0
+    -   Fixed prime-time (golden hour) scoring on the 2nd–5th forecast days: they used the reference day's sunrise/sunset, so the wrong hours could get full marks.
+    -   Fixed the blizzard safety penalty being counted twice for the same time step.
+    -   Fixed humidity showing `NaN%` when dew-point data is missing.
+    -   Fixed the Windows build command (a stray space kept the local dev server running, and `rm -rf` does not exist on Windows).
+    -   Added unit tests (62) covering the scoring rules and both languages; they now run on every push in CI.
+    -   Type checking (`svelte-check`) and ESLint are enforced in CI — every existing lint and type error has been fixed.
+    -   The version number now has a single source of truth (`package.json`) and is synced to the plugin config and README automatically.
+    -   Smaller publish package (no source maps) and reproducible installs (lockfile committed).
 -   1.0.2
     -   Modified plugin name and screenshot.
 -   1.0.1
