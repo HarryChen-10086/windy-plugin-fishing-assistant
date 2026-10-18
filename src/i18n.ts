@@ -93,6 +93,11 @@ const en = {
     pluginName: 'Fishing Index',
     // 页面底部的项目地址
     projectLink: 'Project page on GitHub',
+    // 状态与错误提示
+    stable: 'Stable',
+    errNoForecast: "No forecast data for this spot (it may be outside the selected model's coverage)",
+    errFetchFailed: 'Failed to fetch weather data',
+    errGps: 'Unable to get your GPS position',
 } as const;
 
 /** 中文翻译表 */
@@ -164,6 +169,11 @@ const zh: Record<keyof typeof en, string> = {
     pluginName: '钓鱼指数',
     // 页面底部的项目地址
     projectLink: '项目地址',
+    // 状态与错误提示
+    stable: '稳定',
+    errNoForecast: '未取得该地点的预报数据（可能不在所选模型的覆盖范围内）',
+    errFetchFailed: '获取气象数据失败',
+    errGps: '无法获取 GPS 位置',
 };
 
 export type TranslationKey = keyof typeof en;

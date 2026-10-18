@@ -326,12 +326,12 @@
     import bcast from '@windy/broadcast';
     import { getGPSlocation } from '@windy/geolocation';
     import { map } from '@windy/map';
-    import { setTitle } from '@windy/location';
+    import { setTitle, setUrl } from '@windy/location';
     import * as reverse from '@windy/reverseName';
     import { singleclick } from '@windy/singleclick';
     import store from '@windy/store';
     import metrics from '@windy/metrics';
-    import { isValidLatLonObj, normalizeLatLon } from '@windy/utils';
+    import { normalizeLatLon } from '@windy/utils';
     import { getCapAlertsSummary, getPointForecastData } from '@windy/fetch';
 
     import { onDestroy, onMount } from 'svelte';
@@ -364,9 +364,10 @@
         scoreLevel,
         severeEndTs,
     } from './fishingIndex';
+    import { isSameSpot, parseLatLonParams, toLatLonParams } from './pluginParams';
 
-    import type { LatLon } from '@windy/interfaces.d';
-    import type { overlays } from '@windy/rootScope.d';
+    import type { LatLon } from '@windy/interfaces';
+    import type { overlays } from '@windy/rootScope';
 
     import type {
         CapAlertHeadline,
@@ -385,8 +386,8 @@
 
     const { title, name } = config;
     const HOUR = 3600 * 1000;
-    const INCLUDE = { header: true, celestial: true, meteogram: true, summary: true, debug: true } as const;
-    const WAVES_INCLUDE = { header: true, celestial: true, summary: true, debug: true } as const;
+    const INCLUDE = { header: true, celestial: true, meteogram: true, summary: true } as const;
+    const WAVES_INCLUDE = { header: true, celestial: true, summary: true } as const;
     const HOURLY_INCLUDE = { header: true, celestial: true } as const;
     const LANG_KEY = 'windy-fishing-assistant-lang';
 
@@ -495,9 +496,19 @@
         });
     };
 
-    /** 设置钓点并加载数据 */
-    const setLocation = (latLon: LatLon) => {
-        loc = { lat: latLon.lat, lon: latLon.lon };
+    /**
+     * 设置钓点并加载数据。
+     * @param latLon 目标经纬度
+     * @param syncUrl 是否把钓点写回 URL（由 URL/外部参数驱动的调用无需再写）
+     */
+    const setLocation = (latLon: LatLon, syncUrl = true) => {
+        const next = toLatLonParams(latLon.lat, latLon.lon);
+        const changed = !loc || !isSameSpot(loc, next);
+        loc = next;
+        if (changed && syncUrl) {
+            // 依据 Windy 文档：自身参数变化时用 setUrl 同步 URL，使链接可分享、刷新后保持钓点
+            setUrl(name, next);
+        }
         hideMarker();
         showMarker(latLon.lat, latLon.lon);
         reverse
@@ -558,6 +569,20 @@
             : nowScore;
     };
 
+    /** 清空当前钓点的全部计算结果（加载失败时避免继续显示上一个钓点的数据） */
+    const resetData = () => {
+        air = null;
+        waves = null;
+        alerts = [];
+        segments = [];
+        daily = [];
+        primes = [];
+        nowScore = null;
+        bestToday = null;
+        hourlySegments = [];
+        currentSevere = [];
+    };
+
     /** 加载 Windy 点预报数据（大气 + 海浪 + 预警） */
     const loadData = async (lat: number, lon: number) => {
         const mySeq = ++requestSeq;
@@ -584,7 +609,7 @@
             if (airRes.status === 'fulfilled') {
                 const payload = airRes.value.data;
                 if (!payload || !payload.data) {
-                    throw new Error('未能获取该地点的预报数据（可能不在所选模型覆盖范围）');
+                    throw new Error(_translate('errNoForecast', undefined, lang));
                 }
                 air = payload as unknown as WeatherDataPayload2<DataHash2>;
 
@@ -594,7 +619,9 @@
                 daily = computeDaily(air.data, segments, air.summary, air.celestial);
                 applySelectedTime();
             } else {
-                throw new Error((airRes.reason as Error)?.message || '获取气象数据失败');
+                throw new Error(
+                    (airRes.reason as Error)?.message || _translate('errFetchFailed', undefined, lang),
+                );
             }
 
             if (alertsRes.status === 'fulfilled' && alertsRes.value.data) {
@@ -613,14 +640,11 @@
                     waves?.data ?? null,
                 );
             }
-            console.log(
-                `[FishingAssistant] 未来小时指数：${hourlySegments.length} 个点，步长 ${hourlyStepOf(
-                    hourlySegments,
-                )}h`,
-            );
         } catch (e) {
             if (mySeq !== requestSeq) {return;}
+            // 只在开发者的控制台保留原始错误；界面上展示本地化文案
             console.error('Fishing assistant error:', e);
+            resetData();
             error = (e as Error)?.message || String(e);
         } finally {
             if (mySeq === requestSeq) {
@@ -644,7 +668,7 @@
             })
             .catch(e => {
                 console.error(e);
-                error = '无法获取 GPS 位置';
+                error = _translate('errGps', undefined, lang);
             });
     };
 
@@ -669,15 +693,18 @@
     const wavesText = (x: number | null | undefined): string =>
         x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.waves.convertValue(x);
 
+    /** 气压变化趋势：单位换算交给 Windy 的 metrics，文字走 i18n */
     const pressureTrend = (idx: number, langSel: Lang): string => {
         if (!air) {return '--';}
         const p = air.data.pressure[idx];
         const pp = idx > 0 ? air.data.pressure[idx - 1] : null;
         if (p === null || p === undefined || Number.isNaN(p)) {return '--';}
         if (pp === null || pp === undefined || Number.isNaN(pp)) {return '--';}
-        const d = (p - pp) / 100;
-        if (Math.abs(d) < 0.3) {return langSel === 'en' ? 'Stable' : '稳定';}
-        return d > 0 ? `↑ +${d.toFixed(1)} hPa` : `↓ ${d.toFixed(1)} hPa`;
+        const delta = p - pp;
+        // 30 Pa ≈ 0.3 hPa：小于该幅度视为「稳定」
+        if (Math.abs(delta) < 30) {return _translate('stable', undefined, langSel);}
+        const magnitude = metrics.pressure.convertValue(Math.abs(delta));
+        return delta > 0 ? `↑ +${magnitude}` : `↓ ${magnitude}`;
     };
 
     const humidityText = (idx: number): string => {
@@ -695,12 +722,16 @@
     const rainText = (idx: number): string => {
         if (!air) {return '--';}
         const p = air.data.precipAmount[idx];
-        return p === null || p === undefined || Number.isNaN(p) ? '0 mm' : metrics.rain.convertValue(p);
+        // 无降水数据时显示 0（单位交由 metrics 决定：mm / in）
+        if (p === null || p === undefined || Number.isNaN(p)) {return metrics.rain.convertValue(0);}
+        return metrics.rain.convertValue(p);
     };
 
     const elevationText = (): string => {
         if (!air) {return '--';}
-        return `${Math.round(air.header.elevation)} m`;
+        const elev = air.header.elevation;
+        if (elev === null || elev === undefined || Number.isNaN(elev)) {return '--';}
+        return metrics.elevation.convertValue(elev);
     };
 
     const primeScoreText = (p: PrimeWindow, langSel: Lang): string => {
@@ -761,16 +792,35 @@
         return `${formatLocalTime(a.start, offset)} – ${formatLocalTime(a.end, offset)}`;
     };
 
-    /** 插件打开时：优先使用上下文菜单传入的地点，否则使用地图中心 */
+    /**
+     * 插件打开时：优先使用 URL / 上下文菜单传入的地点，否则使用地图中心。
+     * 依据 Windy 文档，onopen 里不改 URL 与标题（那是 onparamsChanged 的职责），
+     * 且 onopen 可能被多次调用，这里不挂任何监听器。
+     */
     export const onopen = (params?: unknown) => {
-        if (isValidLatLonObj(params)) {
+        const target = parseLatLonParams(params);
+        if (target) {
             const zoom = Math.max(8, map.getZoom());
-            map.setView([params.lat, params.lon], zoom, { animate: true });
-            setLocation({ lat: params.lat, lon: params.lon });
+            map.setView([target.lat, target.lon], zoom, { animate: true });
+            setLocation(target, false);
         } else {
             const c = map.getCenter();
-            setLocation({ lat: c.lat, lon: c.lng });
+            setLocation({ lat: c.lat, lon: c.lng }, false);
         }
+    };
+
+    /**
+     * URL / 外部参数变化时调用（刷新页面、打开分享链接、其它插件带参打开本插件）。
+     * 依据 Windy 文档，参数变化后由插件自己写回 URL 与标题，避免与 onopen 相互覆盖。
+     */
+    export const onparamsChanged = (params?: unknown) => {
+        const target = parseLatLonParams(params);
+        // 插件尚未打开（还没确定钓点）或参数非法时忽略
+        if (!target || !loc) {return;}
+        // setLocation() 自己写 URL 会回调到这里，同一个点直接返回，避免重复加载
+        if (isSameSpot(loc, target)) {return;}
+        map.setView([target.lat, target.lon], Math.max(8, map.getZoom()), { animate: true });
+        setLocation(target, false);
     };
 
     onMount(() => {
