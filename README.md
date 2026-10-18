@@ -137,11 +137,16 @@ This project is open source under the [MIT License](./LICENSE).
     -   Fixed humidity showing `NaN%` when dew-point data is missing.
     -   Fixed the Windows build command (a stray space kept the local dev server running, and `rm -rf` does not exist on Windows).
     -   Fixed the index disagreeing between the 1-hour (next hours) and 3-hour (5-day) forecast feeds: pressure deltas, precipitation and the storm/snow thresholds are now normalised to a 3-hour equivalent before scoring. No UI changes.
-    -   Added unit tests (76) covering the scoring rules and both languages; they now run on every push in CI.
+    -   Added unit tests (90) covering the scoring rules, plugin parameters and both languages; they now run on every push in CI.
     -   Type checking (`svelte-check`) and ESLint are enforced in CI — every existing lint and type error has been fixed.
     -   The version number now has a single source of truth (`package.json`) and is synced to the plugin config and README automatically.
     -   Removed the beta banner at the bottom of the panel and replaced it with a "Project page on GitHub" link.
     -   Smaller publish package (no source maps) and reproducible installs (lockfile committed).
+    -   Wrong spot no longer leaves the previous spot's data behind: a failed load clears the panel and shows a translated error.
+    -   Every remaining hard-coded string (errors, "Stable") and unit (mm/in, m/ft) now comes from the translation table and Windy's unit settings.
+    -   URL parameters are validated and the plugin implements `onparamsChanged`, so shared links and back/forward navigation keep the selected spot.
+    -   Dropped the `debug` request flag and a leftover `console.log` from the production bundle.
+    -   `@windycom/plugin-devtools` is a regular dependency again (as in the official template) and the bundled screenshot is 10× smaller (1.4 MB → 140 KB).
 -   1.0.2
     -   Modified plugin name and screenshot.
 -   1.0.1
