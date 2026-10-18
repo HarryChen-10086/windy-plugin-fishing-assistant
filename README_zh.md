@@ -115,9 +115,9 @@ src/
 
 > ⚠️ 指数仅供参考，实际钓况还受水体、鱼种、季节等本地因素影响，请结合实况判断。
 
-## 测试版与贡献
+## 贡献
 
-> 🧪 本项目目前处于**测试阶段**。遇到问题或有建议，请在
+> 🧪 遇到问题或有建议，请在
 > [Issues](https://github.com/HarryChen-10086/windy-plugin-fishing-assistant/issues) 中提出，
 > 欢迎贡献！
 
@@ -137,6 +137,7 @@ src/
     -   新增 62 个单元测试覆盖评分规则与中英双语；CI 每次推送都会运行。
     -   CI 接入类型检查（`svelte-check`）与 ESLint，并修完现有全部 lint/类型错误。
     -   版本号改为单一真源（`package.json`），自动同步到插件配置与 README。
+    -   移除面板底部的 Beta 横幅，改为「项目地址」GitHub 链接。
     -   发布包体积更小（不再带 sourcemap），依赖安装可复现（提交 lockfile）。
 - 1.0.2
     -   修改插件名称与截图。

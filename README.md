@@ -115,13 +115,13 @@ Levels: **≥80 Excellent · ≥60 Good · ≥40 Fair · ≥25 Poor · <25 Very 
 
 > ⚠️ The index is for reference only — actual fishing also depends on water body, species, season, etc. Always check local conditions.
 
-## Beta & Contribution
+## Contribution
 
-> 🧪 This project is currently in **beta**. If you find a bug or have a suggestion, please
-> report it via [Issues](https://github.com/HarryChen-10086/windy-plugin-fishing-assistant/issues).
+> 🧪 If you find a bug or have a suggestion, please report it via
+> [Issues](https://github.com/HarryChen-10086/windy-plugin-fishing-assistant/issues).
 > Contributions are welcome!
 
-- Repository: <https://github.com/HarryChen-10086/windy-plugin-fishing-assistant>
+- Project page: <https://github.com/HarryChen-10086/windy-plugin-fishing-assistant>
 
 ## License
 
@@ -137,6 +137,7 @@ This project is open source under the [MIT License](./LICENSE).
     -   Added unit tests (62) covering the scoring rules and both languages; they now run on every push in CI.
     -   Type checking (`svelte-check`) and ESLint are enforced in CI — every existing lint and type error has been fixed.
     -   The version number now has a single source of truth (`package.json`) and is synced to the plugin config and README automatically.
+    -   Removed the beta banner at the bottom of the panel and replaced it with a "Project page on GitHub" link.
     -   Smaller publish package (no source maps) and reproducible installs (lockfile committed).
 -   1.0.2
     -   Modified plugin name and screenshot.
