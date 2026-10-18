@@ -8,8 +8,8 @@
  */
 import store from '@windy/store';
 
-import type { Lang, MoonPhase, SevereKind, WeatherConditionIcon } from './types';
 import { MoonPhase as MoonPhaseEnum, WeatherConditionIcon as IconEnum } from './types';
+import type { Lang, MoonPhase, SevereKind, WeatherConditionIcon } from './types';
 
 export type { Lang };
 
@@ -218,7 +218,7 @@ export const detectLang = (): Lang => {
     }
     try {
         const nav = (typeof navigator !== 'undefined' ? navigator.language : '') || '';
-        if (nav.toLowerCase().startsWith('zh')) return 'zh';
+        if (nav.toLowerCase().startsWith('zh')) {return 'zh';}
     } catch {
         /* 忽略 */
     }
@@ -323,7 +323,7 @@ const COMPASS: Record<Lang, string[]> = {
 
 /** 风向（度）-> 方位 */
 export const dir2compass = (deg: number | null | undefined, lang: Lang = currentLang): string => {
-    if (deg === null || deg === undefined || Number.isNaN(deg)) return '--';
+    if (deg === null || deg === undefined || Number.isNaN(deg)) {return '--';}
     return COMPASS[lang][Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 };
 
@@ -369,7 +369,7 @@ export const alertTypeText = (type: string, lang: Lang = currentLang): string =>
         A: { en: 'Avalanche', zh: '雪崩' },
     };
     const code = codeMap[type];
-    if (code) return lang === 'en' ? code.en : code.zh;
+    if (code) {return lang === 'en' ? code.en : code.zh;}
 
     // 兼容完整英文名（例如 Thunderstorm、Heat、Wind…）
     const fullMap: Record<string, { en: string; zh: string }> = {
@@ -403,7 +403,7 @@ export const alertSeverityText = (sev: string, lang: Lang = currentLang): string
         A: { en: 'Unknown', zh: '未知' },
     };
     const code = codeMap[sev];
-    if (code) return lang === 'en' ? code.en : code.zh;
+    if (code) {return lang === 'en' ? code.en : code.zh;}
 
     // 兼容完整英文名（例如 Moderate、Severe、Extreme、Minor…）
     const fullMap: Record<string, { en: string; zh: string }> = {

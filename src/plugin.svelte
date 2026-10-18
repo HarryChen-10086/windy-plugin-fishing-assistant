@@ -2,6 +2,8 @@
     {title}
 </div>
 <section class="plugin__content fa-root">
+    <!-- 标题即返回按钮：Windy 侧栏模板惯用 div + on:click，保持外观不变 -->
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
     <div
         class="plugin__title plugin__title--chevron-back"
         on:click={() => bcast.emit('rqstOpen', 'menu')}
@@ -345,22 +347,6 @@
     import { onDestroy, onMount } from 'svelte';
 
     import config from './pluginConfig';
-
-    import type { LatLon } from '@windy/interfaces.d';
-    import type { overlays } from '@windy/rootScope.d';
-
-    import type {
-        CapAlertHeadline,
-        Celestial,
-        DataHash2,
-        Lang,
-        SevereKind,
-        WavesDataHash2,
-        WeatherDataPayload2,
-    } from './types';
-
-    /** 地图叠加层标识（由 rootScope 的 overlays 常量派生） */
-    type Overlays = (typeof overlays)[number];
     import {
         alertSeverityText,
         alertTypeText,
@@ -381,7 +367,6 @@
         closestSegment,
         computeDaily,
         computeSegments,
-        formatLocalDate,
         formatLocalDateTime,
         formatLocalTime,
         primeWindows,
@@ -389,7 +374,24 @@
         scoreLevel,
         severeEndTs,
     } from './fishingIndex';
+
+    import type { LatLon } from '@windy/interfaces.d';
+    import type { overlays } from '@windy/rootScope.d';
+
+    import type {
+        CapAlertHeadline,
+        Celestial,
+        DataHash2,
+        Lang,
+        SevereKind,
+        WavesDataHash2,
+        WeatherDataPayload2,
+    } from './types';
+
     import type { DayScore, PrimeWindow, SegmentScore } from './fishingIndex';
+
+    /** 地图叠加层标识（由 rootScope 的 overlays 常量派生） */
+    type Overlays = (typeof overlays)[number];
 
     const { title, name } = config;
     const HOUR = 3600 * 1000;
@@ -476,8 +478,8 @@
     let requestSeq = 0;
 
     const wavesModelOf = (model: string): string => {
-        if (model === 'gfs') return 'gfsWaves';
-        if (model === 'icon') return 'iconEuWaves';
+        if (model === 'gfs') {return 'gfsWaves';}
+        if (model === 'icon') {return 'iconEuWaves';}
         return 'ecmwfWaves';
     };
 
@@ -522,7 +524,7 @@
 
     /** 计算评分序列的实际步长（小时），取中位数 */
     const hourlyStepOf = (segs: SegmentScore[]): number => {
-        if (segs.length < 2) return 0;
+        if (segs.length < 2) {return 0;}
         const diffs = segs.slice(1).map((s, i) => s.ts - segs[i].ts);
         const sorted = [...diffs].sort((a, b) => a - b);
         return Math.round(sorted[Math.floor(sorted.length / 2)] / HOUR);
@@ -533,7 +535,7 @@
      * 所选时刻所在“日”的最佳时段以及恶劣天气警示。
      */
     const applySelectedTime = () => {
-        if (!air || segments.length === 0) return;
+        if (!air || segments.length === 0) {return;}
         nowScore = closestSegment(segments, selectedTime);
         isNowTime = !!nowScore && closestSegment(segments, Date.now())?.ts === nowScore.ts;
 
@@ -580,7 +582,7 @@
             ]);
 
             // 丢弃过期请求的结果
-            if (mySeq !== requestSeq) return;
+            if (mySeq !== requestSeq) {return;}
 
             // 先处理海浪数据，供指数计算中的大浪检测使用
             if (wavesRes.status === 'fulfilled' && wavesRes.value.data?.data) {
@@ -627,7 +629,7 @@
                 )}h`,
             );
         } catch (e) {
-            if (mySeq !== requestSeq) return;
+            if (mySeq !== requestSeq) {return;}
             console.error('Fishing assistant error:', e);
             error = (e as Error)?.message || String(e);
         } finally {
@@ -639,7 +641,7 @@
 
     /** 手动刷新（切换模型后） */
     const refresh = () => {
-        if (loc) loadData(loc.lat, loc.lon);
+        if (loc) {loadData(loc.lat, loc.lon);}
     };
 
     /** 定位到我的位置 */
@@ -677,47 +679,47 @@
     const wavesText = (x: number | null | undefined): string =>
         x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.waves.convertValue(x);
 
-    const pressureTrend = (idx: number, lang: Lang): string => {
-        if (!air) return '--';
+    const pressureTrend = (idx: number, langSel: Lang): string => {
+        if (!air) {return '--';}
         const p = air.data.pressure[idx];
         const pp = idx > 0 ? air.data.pressure[idx - 1] : null;
-        if (p === null || p === undefined || Number.isNaN(p)) return '--';
-        if (pp === null || pp === undefined || Number.isNaN(pp)) return '--';
+        if (p === null || p === undefined || Number.isNaN(p)) {return '--';}
+        if (pp === null || pp === undefined || Number.isNaN(pp)) {return '--';}
         const d = (p - pp) / 100;
-        if (Math.abs(d) < 0.3) return lang === 'en' ? 'Stable' : '稳定';
+        if (Math.abs(d) < 0.3) {return langSel === 'en' ? 'Stable' : '稳定';}
         return d > 0 ? `↑ +${d.toFixed(1)} hPa` : `↓ ${d.toFixed(1)} hPa`;
     };
 
     const humidityText = (idx: number): string => {
-        if (!air?.meteogram) return '--';
+        if (!air?.meteogram) {return '--';}
         const rh = relativeHumidity(air.data.temperature[idx], air.meteogram.dewPoint[idx]);
         return rh === null ? '--' : `${Math.round(rh)}%`;
     };
 
     const cloudText = (idx: number): string => {
-        if (!air?.meteogram) return '--';
+        if (!air?.meteogram) {return '--';}
         const c = air.meteogram['cloud-surface']?.[idx];
         return c === null || c === undefined || Number.isNaN(c) ? '--' : `${Math.round(c)}%`;
     };
 
     const rainText = (idx: number): string => {
-        if (!air) return '--';
+        if (!air) {return '--';}
         const p = air.data.precipAmount[idx];
         return p === null || p === undefined || Number.isNaN(p) ? '0 mm' : metrics.rain.convertValue(p);
     };
 
     const elevationText = (): string => {
-        if (!air) return '--';
+        if (!air) {return '--';}
         return `${Math.round(air.header.elevation)} m`;
     };
 
-    const primeScoreText = (p: PrimeWindow, lang: Lang): string => {
-        if (!segments.length) return '';
+    const primeScoreText = (p: PrimeWindow, langSel: Lang): string => {
+        if (!segments.length) {return '';}
         let inWin = segments.filter(s => s.ts >= p.start && s.ts <= p.end);
         if (!inWin.length) {
             // 窗口内无数据点（如清晨窗口早于预报数据起点）：取最接近窗口中心的时段
             const nearest = closestSegment(segments, (p.start + p.end) / 2);
-            if (!nearest) return '';
+            if (!nearest) {return '';}
             inWin = [nearest];
         }
         const best = inWin.reduce((a, b) => (b.total > a.total ? b : a), inWin[0]);
@@ -725,22 +727,22 @@
             'primeEst',
             {
                 score: best.total,
-                level: levelLabel(scoreLevel(best.total).level, lang),
+                level: levelLabel(scoreLevel(best.total).level, langSel),
             },
-            lang,
+            langSel,
         );
     };
 
     const hasWavesData = (w: WeatherDataPayload2<WavesDataHash2>): boolean =>
         !!w.data && Array.isArray(w.data.waves) && w.data.waves.some(v => v !== null && !Number.isNaN(v));
 
-    const wavesSwell1Text = (idx: number, lang: Lang): string => {
-        if (!waves) return '--';
+    const wavesSwell1Text = (idx: number, langSel: Lang): string => {
+        if (!waves) {return '--';}
         const h = waves.data.swell1?.[idx];
-        if (h === null || h === undefined || Number.isNaN(h)) return '--';
+        if (h === null || h === undefined || Number.isNaN(h)) {return '--';}
         const per = waves.data.swell1Period?.[idx];
         const dir = waves.data.swell1Dir?.[idx];
-        return `${wavesText(h)}${per != null && !Number.isNaN(per) ? ` / ${Math.round(per)}s` : ''}${dir != null && !Number.isNaN(dir) ? ` ${dir2compass(dir, lang)}` : ''}`;
+        return `${wavesText(h)}${per != null && !Number.isNaN(per) ? ` / ${Math.round(per)}s` : ''}${dir != null && !Number.isNaN(dir) ? ` ${dir2compass(dir, langSel)}` : ''}`;
     };
 
     const sstText = (): string => {
@@ -751,7 +753,7 @@
     };
 
     const updateText = (): string => {
-        if (!air?.header.update) return '--';
+        if (!air?.header.update) {return '--';}
         const d = new Date(air.header.update);
         return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(
             d.getUTCDate(),
@@ -764,7 +766,7 @@
         sev === 'S' || sev === 'E' || sev === 'Severe' || sev === 'Extreme';
 
     const alertTimeText = (a: CapAlertHeadline): string => {
-        if (!air) return '';
+        if (!air) {return '';}
         const offset = air.celestial?.TZoffset ?? 0;
         return `${formatLocalTime(a.start, offset)} – ${formatLocalTime(a.end, offset)}`;
     };

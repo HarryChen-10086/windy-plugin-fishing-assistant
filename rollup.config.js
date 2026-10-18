@@ -7,10 +7,9 @@ import rollupSvelte from 'rollup-plugin-svelte';
 import rollupSwc from 'rollup-plugin-swc3';
 import rollupCleanup from 'rollup-plugin-cleanup';
 
-import { less } from 'svelte-preprocess-less';
-import sveltePreprocess from 'svelte-preprocess';
-
 import { transformCodeToESMPlugin, keyPEM, certificatePEM } from '@windycom/plugin-devtools';
+
+import svelteConfig from './svelte.config.js';
 
 const useSourceMaps = true;
 
@@ -51,16 +50,7 @@ export default {
     plugins: [
         rollupSvelte({
             emitCss: false,
-            preprocess: {
-                style: less({
-                    sourceMap: false,
-                    math: 'always',
-                }),
-                script: data => {
-                    const preprocessed = sveltePreprocess({ sourceMap: useSourceMaps });
-                    return preprocessed.script(data);
-                },
-            },
+            preprocess: svelteConfig.preprocess,
         }),
         rollupSwc({
             include: ['**/*.ts', '**/*.svelte'],

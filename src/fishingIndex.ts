@@ -11,6 +11,7 @@
  *
  * 所有气象数据均来自 Windy 免费点预报客户端 API。
  */
+import { MoonPhase as MoonPhaseEnum, WeatherConditionIcon as IconEnum } from './types';
 import type {
     Celestial,
     DataHash2,
@@ -21,7 +22,6 @@ import type {
     WavesDataHash2,
     WeatherConditionIcon,
 } from './types';
-import { MoonPhase as MoonPhaseEnum, WeatherConditionIcon as IconEnum } from './types';
 
 /** 单个时间步的钓鱼指数评分明细 */
 export interface SegmentScore {
@@ -96,37 +96,37 @@ const DAY = 24 * HOUR;
  * 等级文字请通过 i18n 的 levelLabel(level, lang) 获取。
  */
 export const scoreLevel = (score: number): ScoreLevel => {
-    if (score >= 80) return { level: 0, color: '#2ecc71' };
-    if (score >= 60) return { level: 1, color: '#8bc34a' };
-    if (score >= 40) return { level: 2, color: '#f1c40f' };
-    if (score >= 25) return { level: 3, color: '#e67e22' };
+    if (score >= 80) {return { level: 0, color: '#2ecc71' };}
+    if (score >= 60) {return { level: 1, color: '#8bc34a' };}
+    if (score >= 40) {return { level: 2, color: '#f1c40f' };}
+    if (score >= 25) {return { level: 3, color: '#e67e22' };}
     return { level: 4, color: '#e74c3c' };
 };
 
 /** 气压趋势得分（0-25）：比较相邻两个时间步的气压差（Pa） */
 export const scorePressure = (pressure: NumValue, prevPressure: NumValue): number => {
-    if (pressure === null || pressure === undefined || Number.isNaN(pressure)) return 10;
+    if (pressure === null || pressure === undefined || Number.isNaN(pressure)) {return 10;}
     if (prevPressure === null || prevPressure === undefined || Number.isNaN(prevPressure)) {
         // 无历史数据，仅看绝对值
-        const abs = pressure / 100; // hPa
-        if (abs >= 1008 && abs <= 1022) return 20;
-        if (abs >= 1000 && abs <= 1030) return 15;
+        const absHpa = pressure / 100; // hPa
+        if (absHpa >= 1008 && absHpa <= 1022) {return 20;}
+        if (absHpa >= 1000 && absHpa <= 1030) {return 15;}
         return 10;
     }
     const diff = Math.abs(pressure - prevPressure); // Pa
     const abs = pressure / 100; // hPa
 
     let trend = 0;
-    if (diff <= 100) trend = 18; // 气压非常稳定
-    else if (diff <= 200) trend = 15;
-    else if (diff <= 350) trend = 11;
-    else if (diff <= 550) trend = 6;
-    else trend = 2; // 气压骤变
+    if (diff <= 100) {trend = 18;} // 气压非常稳定
+    else if (diff <= 200) {trend = 15;}
+    else if (diff <= 350) {trend = 11;}
+    else if (diff <= 550) {trend = 6;}
+    else {trend = 2;} // 气压骤变
 
     // 绝对值：中高气压（稳定高压区）额外加分
     let absScore = 0;
-    if (abs >= 1008 && abs <= 1022) absScore = 7;
-    else if (abs >= 1000 && abs <= 1030) absScore = 4;
+    if (abs >= 1008 && abs <= 1022) {absScore = 7;}
+    else if (abs >= 1000 && abs <= 1030) {absScore = 4;}
 
     return Math.min(25, trend + absScore);
 };
@@ -180,35 +180,35 @@ export const scoreWeather = (icon: WeatherConditionIcon, precip: NumValue): numb
     }
     // 降水量过大再扣分
     if (precip !== null && precip !== undefined && !Number.isNaN(precip)) {
-        if (precip > 10) base = Math.min(base, 4);
-        else if (precip > 4) base = Math.min(base, 8);
-        else if (precip > 1) base = Math.min(base, 13);
+        if (precip > 10) {base = Math.min(base, 4);}
+        else if (precip > 4) {base = Math.min(base, 8);}
+        else if (precip > 1) {base = Math.min(base, 13);}
     }
     return Math.max(0, Math.min(20, base));
 };
 
 /** 风力得分（0-15）：风速单位为 m/s */
 export const scoreWind = (wind: NumValue): number => {
-    if (wind === null || wind === undefined || Number.isNaN(wind)) return 7;
+    if (wind === null || wind === undefined || Number.isNaN(wind)) {return 7;}
     const w = Math.abs(wind);
-    if (w >= 1.5 && w <= 6) return 15; // 微风拂面，最适宜
-    if (w < 1.5 && w > 0.5) return 12;
-    if (w <= 0.5) return 9; // 水面太静，鱼口偏差
-    if (w > 6 && w <= 9) return 10;
-    if (w > 9 && w <= 12) return 5;
-    if (w > 12 && w <= 16) return 3;
+    if (w >= 1.5 && w <= 6) {return 15;} // 微风拂面，最适宜
+    if (w < 1.5 && w > 0.5) {return 12;}
+    if (w <= 0.5) {return 9;} // 水面太静，鱼口偏差
+    if (w > 6 && w <= 9) {return 10;}
+    if (w > 9 && w <= 12) {return 5;}
+    if (w > 12 && w <= 16) {return 3;}
     return 1; // 大风，抛竿困难且危险
 };
 
 /** 温度得分（0-15）：温度为开尔文 */
 export const scoreTemp = (tempK: NumValue): number => {
-    if (tempK === null || tempK === undefined || Number.isNaN(tempK)) return 7;
+    if (tempK === null || tempK === undefined || Number.isNaN(tempK)) {return 7;}
     const c = tempK - 273.15;
-    if (c >= 10 && c <= 25) return 15;
-    if (c >= 5 && c < 10) return 11;
-    if (c > 25 && c <= 30) return 11;
-    if (c >= 0 && c < 5) return 6;
-    if (c > 30 && c <= 35) return 6;
+    if (c >= 10 && c <= 25) {return 15;}
+    if (c >= 5 && c < 10) {return 11;}
+    if (c > 25 && c <= 30) {return 11;}
+    if (c >= 0 && c < 5) {return 6;}
+    if (c > 30 && c <= 35) {return 6;}
     return 2; // 冰点以下或酷热
 };
 
@@ -222,7 +222,7 @@ export const scoreTimeOfDay = (
     isDay: number,
     celestial: Celestial | undefined,
 ): number => {
-    if (!celestial) return 8;
+    if (!celestial) {return 8;}
     // celestial 只给出"参考日"的日出/日落，这里按本地日差平移，
     // 保证 5 天预报中每一天都用自己的黄金时段参与评分
     const offset = celestial.TZoffset ?? 0;
@@ -234,12 +234,12 @@ export const scoreTimeOfDay = (
     const eveningStart = sunset - 3 * HOUR;
     const eveningEnd = sunset + 1 * HOUR;
 
-    if (ts >= morningStart && ts <= morningEnd) return 15;
-    if (ts >= eveningStart && ts <= eveningEnd) return 15;
+    if (ts >= morningStart && ts <= morningEnd) {return 15;}
+    if (ts >= eveningStart && ts <= eveningEnd) {return 15;}
     // 紧邻黄金时段的过渡期
-    if (ts >= morningStart - 1 * HOUR && ts <= morningEnd + 1 * HOUR) return 12;
-    if (ts >= eveningStart - 1 * HOUR && ts <= eveningEnd + 1 * HOUR) return 12;
-    if (isDay > 0.5) return 9; // 白天其余时间
+    if (ts >= morningStart - 1 * HOUR && ts <= morningEnd + 1 * HOUR) {return 12;}
+    if (ts >= eveningStart - 1 * HOUR && ts <= eveningEnd + 1 * HOUR) {return 12;}
+    if (isDay > 0.5) {return 9;} // 白天其余时间
     return 6; // 深夜
 };
 
@@ -293,22 +293,22 @@ export const severeKindsAt = (
     const wind = data.wind[index];
     const temp = data.temperature[index];
 
-    if (THUNDER_ICONS.includes(icon)) kinds.push('thunder');
+    if (THUNDER_ICONS.includes(icon)) {kinds.push('thunder');}
     if (precip !== null && precip !== undefined && !Number.isNaN(precip) && precip >= 8) {
         kinds.push('rain');
     }
     if (snow !== null && snow !== undefined && !Number.isNaN(snow) && snow >= 5) {
         kinds.push('snow');
     }
-    if (SNOW_ICONS.includes(icon)) kinds.push('snow');
+    if (SNOW_ICONS.includes(icon)) {kinds.push('snow');}
     if (wind !== null && wind !== undefined && !Number.isNaN(wind) && wind >= 10.8) {
         kinds.push('wind');
     }
     if (temp !== null && temp !== undefined && !Number.isNaN(temp)) {
         const c = temp - 273.15;
-        if (c <= -15 || c >= 38) kinds.push('temp');
+        if (c <= -15 || c >= 38) {kinds.push('temp');}
     }
-    if (FOG_ICONS.includes(icon)) kinds.push('fog');
+    if (FOG_ICONS.includes(icon)) {kinds.push('fog');}
     if (waves && wavesIndex !== null) {
         const w = waves.waves[wavesIndex];
         if (w !== null && w !== undefined && !Number.isNaN(w) && w >= 2.5) {
@@ -410,7 +410,7 @@ export const computeDaily = (
     if (summary && summary.length > 0) {
         for (const s of summary) {
             const daySegs = segments.slice(s.index, s.index + s.segments);
-            if (daySegs.length === 0) continue;
+            if (daySegs.length === 0) {continue;}
             const best = daySegs.reduce((a, b) => (b.total > a.total ? b : a), daySegs[0]);
             const avg = Math.round(
                 daySegs.reduce((sum, seg) => sum + seg.total, 0) / daySegs.length,
@@ -430,7 +430,7 @@ export const computeDaily = (
         const groups = new Map<number, SegmentScore[]>();
         segments.forEach(seg => {
             const key = localDay(seg.ts);
-            if (!groups.has(key)) groups.set(key, []);
+            if (!groups.has(key)) {groups.set(key, []);}
             groups.get(key)!.push(seg);
         });
         const sortedKeys = [...groups.keys()].sort((a, b) => a - b);
@@ -445,11 +445,11 @@ export const computeDaily = (
             let tempMin: number | null = null;
             for (const seg of daySegs) {
                 const i = data.ts.indexOf(seg.ts);
-                if (i === -1) continue;
+                if (i === -1) {continue;}
                 const t = data.temperature[i];
                 if (t !== null && t !== undefined && !Number.isNaN(t)) {
-                    if (tempMax === null || t > tempMax) tempMax = t;
-                    if (tempMin === null || t < tempMin) tempMin = t;
+                    if (tempMax === null || t > tempMax) {tempMax = t;}
+                    if (tempMin === null || t < tempMin) {tempMin = t;}
                 }
             }
             days.push({
@@ -468,9 +468,15 @@ export const computeDaily = (
     return days;
 };
 
+/** 将时间戳格式化为当地时间 "M/D"（如 8/20） */
+export const formatLocalDate = (ts: number, offsetHours: number): string => {
+    const d = new Date(ts + offsetHours * HOUR);
+    return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+};
+
 /** 黄金时段（当前日日出/日落前后），date 为该窗口所在日期 */
 export const primeWindows = (celestial: Celestial | undefined): PrimeWindow[] => {
-    if (!celestial) return [];
+    if (!celestial) {return [];}
     const offset = celestial.TZoffset ?? 0;
     const sunrise = celestial.sunriseTs;
     const sunset = celestial.sunsetTs;
@@ -495,7 +501,7 @@ export const primeWindows = (celestial: Celestial | undefined): PrimeWindow[] =>
 /** 由气温与露点计算相对湿度（%） */
 export const relativeHumidity = (tempK: NumValue, dewK: NumValue): number | null => {
     // Number.isNaN(undefined) 为 false，越界/缺数据时漏判会算出 NaN 并显示成 "NaN%"
-    if (!Number.isFinite(tempK) || !Number.isFinite(dewK)) return null;
+    if (!Number.isFinite(tempK) || !Number.isFinite(dewK)) {return null;}
     const T = (tempK as number) - 273.15;
     const Td = (dewK as number) - 273.15;
     const e = Math.exp((17.625 * Td) / (243.04 + Td));
@@ -522,18 +528,12 @@ export const formatLocalDateTime = (ts: number, offsetHours: number): string => 
     return `${month}/${day} ${hh}:${mm}`;
 };
 
-/** 将时间戳格式化为当地时间 "M/D"（如 8/20） */
-export const formatLocalDate = (ts: number, offsetHours: number): string => {
-    const d = new Date(ts + offsetHours * HOUR);
-    return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
-};
-
 /** 找到最接近给定时间戳的评分 */
 export const closestSegment = (
     segments: SegmentScore[],
     ts: number,
 ): SegmentScore | null => {
-    if (segments.length === 0) return null;
+    if (segments.length === 0) {return null;}
     return segments.reduce((a, b) =>
         Math.abs(b.ts - ts) < Math.abs(a.ts - ts) ? b : a,
     );
