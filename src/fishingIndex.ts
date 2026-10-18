@@ -10,6 +10,11 @@
  *  - 月相            10 分：新月/满月及其前后鱼情通常更好
  *
  * 所有气象数据均来自 Windy 免费点预报客户端 API。
+ *
+ * 单位约定：点预报返回的都是 SI 原始值——温度 K、气压 Pa、风速 m/s、
+ * 降水量 mm（每个时间步）、浪高 m、海拔 m。打分只认这些 SI 值，
+ * 与用户在界面里选的公制/英制/航海单位无关；单位换算只发生在展示层
+ * （plugin.svelte 里的 metrics.*.convertValue），阈值判断一律按 SI。
  */
 import { MoonPhase as MoonPhaseEnum, WeatherConditionIcon as IconEnum } from './types';
 import type {
