@@ -17,7 +17,7 @@
 3. 粘贴以下链接并确认：
 
    ```
-   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.2/plugin.min.js
+   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.1.0/plugin.min.js
    ```
 
 ### 方式二：从插件市场安装

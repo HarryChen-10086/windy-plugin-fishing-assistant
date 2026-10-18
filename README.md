@@ -17,7 +17,7 @@ windows and weather alerts.
 3. Paste the following URL and confirm:
 
    ```
-   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.0.2/plugin.min.js
+   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.1.0/plugin.min.js
    ```
 
 ### Option 2: Install from Marketplace

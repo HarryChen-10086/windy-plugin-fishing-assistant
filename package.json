@@ -1,6 +1,6 @@
 {
     "name": "windy-plugin-fishing-assistant",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "description": "A weather assistant for anglers: current & future fishing index, conditions, prime time, waves and alerts — as a Windy plugin. English & 简体中文.",
     "main": "dist/plugin.min.js",
     "type": "module",
@@ -11,11 +11,14 @@
         "screenshot.png"
     ],
     "scripts": {
+        "prebuild": "node scripts/sync-version.mjs",
         "build": "node scripts/build.mjs",
         "start": "rollup -w -c",
         "lint": "eslint . --ext .ts,.svelte",
         "check": "svelte-check --tsconfig ./tsconfig.json",
-        "verify": "npm run lint && npm run check && npm test",
+        "version:sync": "node scripts/sync-version.mjs",
+        "version:check": "node scripts/sync-version.mjs --check",
+        "verify": "npm run version:check && npm run lint && npm run check && npm test",
         "test": "vitest run",
         "test:watch": "vitest"
     },
