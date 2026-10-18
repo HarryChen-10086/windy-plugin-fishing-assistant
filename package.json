@@ -8,7 +8,8 @@
         "build": "rm -rf dist && mkdir dist && SERVE=false rollup -c && cp package.json dist/",
         "build:win": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist',{recursive:true})\" && set \"SERVE=false\" && rollup -c && node -e \"require('fs').copyFileSync('package.json','dist/package.json')\"",
         "start": "rollup -w -c",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "repository": {
         "type": "git",
@@ -30,5 +31,9 @@
     "homepage": "https://github.com/HarryChen-10086/windy-plugin-fishing-assistant",
     "dependencies": {
         "@windycom/plugin-devtools": "^3.0.3"
+    },
+    "devDependencies": {
+        "@types/node": "^22.20.5",
+        "vitest": "^3.2.7"
     }
 }

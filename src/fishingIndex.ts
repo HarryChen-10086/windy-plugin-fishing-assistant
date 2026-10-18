@@ -104,7 +104,7 @@ export const scoreLevel = (score: number): ScoreLevel => {
 };
 
 /** 气压趋势得分（0-25）：比较相邻两个时间步的气压差（Pa） */
-const scorePressure = (pressure: NumValue, prevPressure: NumValue): number => {
+export const scorePressure = (pressure: NumValue, prevPressure: NumValue): number => {
     if (pressure === null || pressure === undefined || Number.isNaN(pressure)) return 10;
     if (prevPressure === null || prevPressure === undefined || Number.isNaN(prevPressure)) {
         // 无历史数据，仅看绝对值
@@ -132,7 +132,7 @@ const scorePressure = (pressure: NumValue, prevPressure: NumValue): number => {
 };
 
 /** 天气状况得分（0-20） */
-const scoreWeather = (icon: WeatherConditionIcon, precip: NumValue): number => {
+export const scoreWeather = (icon: WeatherConditionIcon, precip: NumValue): number => {
     let base = 10;
     switch (icon) {
         case IconEnum.Clear:
@@ -188,7 +188,7 @@ const scoreWeather = (icon: WeatherConditionIcon, precip: NumValue): number => {
 };
 
 /** 风力得分（0-15）：风速单位为 m/s */
-const scoreWind = (wind: NumValue): number => {
+export const scoreWind = (wind: NumValue): number => {
     if (wind === null || wind === undefined || Number.isNaN(wind)) return 7;
     const w = Math.abs(wind);
     if (w >= 1.5 && w <= 6) return 15; // 微风拂面，最适宜
@@ -201,7 +201,7 @@ const scoreWind = (wind: NumValue): number => {
 };
 
 /** 温度得分（0-15）：温度为开尔文 */
-const scoreTemp = (tempK: NumValue): number => {
+export const scoreTemp = (tempK: NumValue): number => {
     if (tempK === null || tempK === undefined || Number.isNaN(tempK)) return 7;
     const c = tempK - 273.15;
     if (c >= 10 && c <= 25) return 15;
@@ -217,7 +217,7 @@ const localDayIndex = (ts: number, offsetHours: number): number =>
     Math.floor((ts + offsetHours * HOUR) / DAY);
 
 /** 时段得分（0-15）：日出前 2h 至日出后 1.5h、日落前 3h 至日落后 1h 为黄金时段 */
-const scoreTimeOfDay = (
+export const scoreTimeOfDay = (
     ts: number,
     isDay: number,
     celestial: Celestial | undefined,
@@ -244,7 +244,7 @@ const scoreTimeOfDay = (
 };
 
 /** 月相得分（0-10）：新月/满月前后鱼情较好 */
-const scoreMoon = (phase: MoonPhase): number => {
+export const scoreMoon = (phase: MoonPhase): number => {
     switch (phase) {
         case MoonPhaseEnum.NewMoon:
         case MoonPhaseEnum.FullMoon:
