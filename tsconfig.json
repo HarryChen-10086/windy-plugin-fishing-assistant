@@ -8,6 +8,7 @@
         "outDir": "dist",
         "target": "es2022",
         "typeRoots": [ "./node_modules/@types/","./declarations"],
+        "types": ["node"],
         "resolveJsonModule": false,
         "sourceMap": false,
         "incremental": true,

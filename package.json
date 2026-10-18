@@ -8,7 +8,7 @@
         "plugin.json",
         "plugin.min.js",
         "plugin.js",
-        "screenshot.png"
+        "screenshot.jpg"
     ],
     "scripts": {
         "prebuild": "node scripts/sync-version.mjs",
@@ -40,6 +40,9 @@
         "url": "https://github.com/HarryChen-10086/windy-plugin-fishing-assistant/issues"
     },
     "homepage": "https://github.com/HarryChen-10086/windy-plugin-fishing-assistant",
+    "dependencies": {
+        "@windycom/plugin-devtools": "^3.0.3"
+    },
     "devDependencies": {
         "@rollup/plugin-commonjs": "^25.0.8",
         "@rollup/plugin-node-resolve": "^15.3.1",
@@ -48,7 +51,6 @@
         "@types/node": "^22.20.5",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.21.0",
-        "@windycom/plugin-devtools": "^3.0.3",
         "eslint": "^8.57.1",
         "eslint-import-resolver-typescript": "^3.10.1",
         "eslint-plugin-import": "^2.32.0",
