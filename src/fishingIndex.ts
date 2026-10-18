@@ -89,6 +89,7 @@ export interface ScoreLevel {
 }
 
 const HOUR = 3600 * 1000;
+const DAY = 24 * HOUR;
 
 /**
  * 指数等级划分（语言无关，只返回等级与颜色）。
@@ -211,6 +212,10 @@ const scoreTemp = (tempK: NumValue): number => {
     return 2; // 冰点以下或酷热
 };
 
+/** 本地日序号（用固定 UTC 偏移换算，用于把日出/日落平移到目标日期） */
+const localDayIndex = (ts: number, offsetHours: number): number =>
+    Math.floor((ts + offsetHours * HOUR) / DAY);
+
 /** 时段得分（0-15）：日出前 2h 至日出后 1.5h、日落前 3h 至日落后 1h 为黄金时段 */
 const scoreTimeOfDay = (
     ts: number,
@@ -218,8 +223,12 @@ const scoreTimeOfDay = (
     celestial: Celestial | undefined,
 ): number => {
     if (!celestial) return 8;
-    const sunrise = celestial.sunriseTs;
-    const sunset = celestial.sunsetTs;
+    // celestial 只给出"参考日"的日出/日落，这里按本地日差平移，
+    // 保证 5 天预报中每一天都用自己的黄金时段参与评分
+    const offset = celestial.TZoffset ?? 0;
+    const dayShift = localDayIndex(ts, offset) - localDayIndex(celestial.sunriseTs, offset);
+    const sunrise = celestial.sunriseTs + dayShift * DAY;
+    const sunset = celestial.sunsetTs + dayShift * DAY;
     const morningStart = sunrise - 2 * HOUR;
     const morningEnd = sunrise + 1.5 * HOUR;
     const eveningStart = sunset - 3 * HOUR;
@@ -306,7 +315,8 @@ export const severeKindsAt = (
             kinds.push('waves');
         }
     }
-    return kinds;
+    // 去重：同一时间步可能同时命中"降雪量"与"雪图标"，重复项会让安全扣分翻倍
+    return [...new Set(kinds)];
 };
 
 /** 计算某恶劣条件预计结束的时间戳（持续到预报期末则为 null） */
@@ -484,9 +494,10 @@ export const primeWindows = (celestial: Celestial | undefined): PrimeWindow[] =>
 
 /** 由气温与露点计算相对湿度（%） */
 export const relativeHumidity = (tempK: NumValue, dewK: NumValue): number | null => {
-    if (tempK === null || dewK === null || Number.isNaN(tempK) || Number.isNaN(dewK)) return null;
-    const T = tempK - 273.15;
-    const Td = dewK - 273.15;
+    // Number.isNaN(undefined) 为 false，越界/缺数据时漏判会算出 NaN 并显示成 "NaN%"
+    if (!Number.isFinite(tempK) || !Number.isFinite(dewK)) return null;
+    const T = (tempK as number) - 273.15;
+    const Td = (dewK as number) - 273.15;
     const e = Math.exp((17.625 * Td) / (243.04 + Td));
     const es = Math.exp((17.625 * T) / (243.04 + T));
     const rh = 100 * (e / es);
