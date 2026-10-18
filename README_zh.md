@@ -7,7 +7,7 @@
 黄金时段与天气预警。
 
 ## 截图
-![screenshot](src/screenshot.png)
+![screenshot](src/screenshot.jpg)
 
 ## 安装
 

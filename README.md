@@ -7,7 +7,7 @@ chosen spot and shows the weather & sea conditions anglers care about — pressu
 wind, temperature, humidity, waves, sea surface temperature, sunrise/sunset, prime-time
 windows and weather alerts.
 ## Screenshots
-![screenshot](src/screenshot.png)
+![screenshot](src/screenshot.jpg)
 
 ## Installation
 
