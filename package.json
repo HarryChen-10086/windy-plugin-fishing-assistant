@@ -40,7 +40,6 @@
         "url": "https://github.com/HarryChen-10086/windy-plugin-fishing-assistant/issues"
     },
     "homepage": "https://github.com/HarryChen-10086/windy-plugin-fishing-assistant",
-    "dependencies": {},
     "devDependencies": {
         "@rollup/plugin-commonjs": "^25.0.8",
         "@rollup/plugin-node-resolve": "^15.3.1",
@@ -66,6 +65,7 @@
         "svelte-preprocess": "^5.1.4",
         "svelte-preprocess-less": "^0.4.0",
         "typescript": "^5.9.3",
-        "vitest": "^3.2.7"
+        "vitest": "^3.2.7",
+        "yaml": "^2.9.1"
     }
 }
