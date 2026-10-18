@@ -89,7 +89,7 @@ const en = {
     // 其它
     windSuffix: '',
     footer:
-        'Data source: Windy free point forecast API ({model}, updated {time}). The index is for reference only — always check local conditions. 🎣',
+        'Data source: Windy point forecast API ({model}, updated {time}). The index is for reference only — always check local conditions. 🎣',
     pluginName: 'Fishing Index',
     // 页面底部的项目地址
     projectLink: 'Project page on GitHub',
@@ -165,7 +165,7 @@ const zh: Record<keyof typeof en, string> = {
     layerWaves: '浪',
     layerSST: '海温',
     windSuffix: '风',
-    footer: '数据来源：Windy 免费点预报接口（{model}，更新时间 {time}）。指数仅供参考，请结合当地实况判断。🎣',
+    footer: '数据来源：Windy 点预报接口（{model}，更新时间 {time}）。指数仅供参考，请结合当地实况判断。🎣',
     pluginName: '钓鱼指数',
     // 页面底部的项目地址
     projectLink: '项目地址',
