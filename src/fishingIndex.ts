@@ -261,6 +261,15 @@ export const scoreTemp = (tempK: NumValue): number => {
 const localDayIndex = (ts: number, offsetHours: number): number =>
     Math.floor((ts + offsetHours * HOUR) / DAY);
 
+/**
+ * 本地日键（Y*10000+M*100+D），按固定 UTC 偏移换算。
+ * 供 computeDaily 分组与界面判断"所选时刻属于哪一天"共用，避免两处口径不一致。
+ */
+export const localDayKey = (ts: number, offsetHours: number): number => {
+    const d = new Date(ts + offsetHours * HOUR);
+    return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+};
+
 /** 时段得分（0-15）：日出前 2h 至日出后 1.5h、日落前 3h 至日落后 1h 为黄金时段 */
 export const scoreTimeOfDay = (
     ts: number,
@@ -365,18 +374,40 @@ export const severeKindsAt = (
     return [...new Set(kinds)];
 };
 
-/** 计算某恶劣条件预计结束的时间戳（持续到预报期末则为 null） */
+/** 取评分序列的步长（毫秒，相邻差中位数）；样本不足推不出时返回 0 */
+const stepMsOf = (segments: SegmentScore[]): number => {
+    if (segments.length < 2) {return 0;}
+    const diffs = segments
+        .slice(1)
+        .map((seg, idx) => seg.ts - segments[idx].ts)
+        .filter(d => d > 0)
+        .sort((a, b) => a - b);
+    if (!diffs.length) {return 0;}
+    return diffs[Math.floor(diffs.length / 2)];
+};
+
+/**
+ * 计算某恶劣条件预计结束的时间戳（持续到预报期末则为 null）。
+ *
+ * 返回的是**最后一个该恶劣条件时间步结束的时刻**。原实现直接返回第一个非恶劣步的
+ * 时间戳，等于把持续时长多算了一个步长：例如 3h 步长下 09:00 起大风、12:00 转好，
+ * 结束时刻应是 12:00（09:00 这一步的结束），旧实现沿用到下一步才停。
+ */
 export const severeEndTs = (
     segments: SegmentScore[],
     kind: SevereKind,
     startIdx: number,
 ): number | null => {
-    for (let i = startIdx + 1; i < segments.length; i++) {
-        if (!segments[i].severeKinds.includes(kind)) {
-            return segments[i].ts;
-        }
+    let lastIdx = -1;
+    for (let i = startIdx; i < segments.length; i++) {
+        if (!segments[i].severeKinds.includes(kind)) {break;}
+        lastIdx = i;
     }
-    return null;
+    // 起点就没有该恶劣条件，或序列为空
+    if (lastIdx === -1) {return null;}
+    // 一直持续到预报期末
+    if (lastIdx === segments.length - 1) {return null;}
+    return segments[lastIdx].ts + stepMsOf(segments);
 };
 
 /** 在时间戳数组中查找最接近给定时刻的下标 */
@@ -393,6 +424,31 @@ export const closestIndex = (tsArr: number[], ts: number): number => {
     return best;
 };
 
+/**
+ * 在时间戳数组中查找最接近给定时刻的下标；若最近点的偏差超过 maxGapMs 则返回 null。
+ *
+ * closestIndex 会把越界的查询钳到序列首/末，用在覆盖范围不同的数据源之间
+ * （如 5 天大气数据配 3 天浪数据）就会"借用"首尾值，因此需要这个带范围判断的版本。
+ */
+export const closestIndexWithin = (
+    tsArr: ReadonlyArray<number>,
+    ts: number,
+    maxGapMs: number,
+): number | null => {
+    if (tsArr.length === 0) {return null;}
+    let best = 0;
+    let bestDiff = Infinity;
+    tsArr.forEach((t, i) => {
+        const d = Math.abs(t - ts);
+        if (d < bestDiff) {
+            bestDiff = d;
+            best = i;
+        }
+    });
+    // 恰好等于上限仍视为覆盖范围内
+    return bestDiff > maxGapMs ? null : best;
+};
+
 /** 计算整个时间序列中每个时间步的钓鱼指数（含恶劣条件安全扣分） */
 export const computeSegments = (
     data: DataHash2,
@@ -404,6 +460,11 @@ export const computeSegments = (
     // 步长从数据自推：3h（5 天详情）与 1h（未来小时）两条链路共用本函数，
     // 所有累计量阈值都要先归一，否则同一段天气会算出不同分数
     const stepHours = stepHoursOf(data.ts);
+    // 海浪数据步长自推（可能被重采样，不能假定与大气数据一致），
+    // 容差取 1.5 个浪数据步长：留半格余量，又不至于跨到下一个时间步。
+    // 大气数据取 5 天、海浪只取 3 天，若用 closestIndex 则越界查询会一直钳到
+    // 浪数据的最后一步，导致第 4-5 天凭空出现"大浪 -20"的扣分。
+    const WAVES_MAX_GAP_MS = waves ? 1.5 * stepHoursOf(waves.ts) * HOUR : 0;
     for (let i = 0; i < n; i++) {
         const prevPressure = i > 0 ? data.pressure[i - 1] : null;
         const pressure = scorePressure(data.pressure[i], prevPressure, stepHours);
@@ -415,7 +476,7 @@ export const computeSegments = (
         const base = pressure + weather + wind + temp + time + moon;
 
         // 恶劣条件识别与安全扣分
-        const wIdx = waves ? closestIndex(waves.ts, data.ts[i]) : null;
+        const wIdx = waves ? closestIndexWithin(waves.ts, data.ts[i], WAVES_MAX_GAP_MS) : null;
         const severeKinds = severeKindsAt(data, i, waves, wIdx, stepHours);
         const penalty = Math.max(
             -50,
@@ -448,18 +509,24 @@ export const computeDaily = (
     celestial: Celestial | undefined,
 ): DayScore[] => {
     const offset = celestial?.TZoffset ?? 0;
-    const localDay = (ts: number) => {
-        const d = new Date(ts + offset * HOUR);
-        return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
-    };
 
     // 优先使用 summary（含当日天气与温度），否则按当地时间分组
     const days: DayScore[] = [];
 
     if (summary && summary.length > 0) {
+        // summary 的 index/segments 来自远端接口，步长切换或数据截断时可能与本地
+        // 评分序列长度对不上。这里逐个夹取区间并跳过空区间/乱序条目，
+        // 避免越界时整天被静默丢掉（或抛出异常）。
+        let consumedEnd = 0;
         for (const s of summary) {
-            const daySegs = segments.slice(s.index, s.index + s.segments);
-            if (daySegs.length === 0) {continue;}
+            const start = Math.max(0, Math.min(segments.length, s.index));
+            const len = Math.max(0, Math.min(s.segments, segments.length - start));
+            // len 为 0 说明整天都落在序列外，无可用评分
+            if (len === 0) {continue;}
+            // 起点早于已用游标说明条目重复或乱序，跳过以免同一天被统计两次
+            if (start < consumedEnd) {continue;}
+            consumedEnd = start + len;
+            const daySegs = segments.slice(start, start + len);
             const best = daySegs.reduce((a, b) => (b.total > a.total ? b : a), daySegs[0]);
             const avg = Math.round(
                 daySegs.reduce((sum, seg) => sum + seg.total, 0) / daySegs.length,
@@ -478,9 +545,15 @@ export const computeDaily = (
     } else {
         const groups = new Map<number, SegmentScore[]>();
         segments.forEach(seg => {
-            const key = localDay(seg.ts);
+            const key = localDayKey(seg.ts, offset);
             if (!groups.has(key)) {groups.set(key, []);}
             groups.get(key)!.push(seg);
+        });
+        // 原来用 data.ts.indexOf(seg.ts) 逐段查下标，整段聚合是 O(n²)；
+        // 这里一次性建 ts → 下标 映射（保留首个下标，与 indexOf 语义一致）
+        const tsIndex = new Map<number, number>();
+        data.ts.forEach((t, idx) => {
+            if (!tsIndex.has(t)) {tsIndex.set(t, idx);}
         });
         const sortedKeys = [...groups.keys()].sort((a, b) => a - b);
         for (const key of sortedKeys) {
@@ -493,8 +566,8 @@ export const computeDaily = (
             let tempMax: number | null = null;
             let tempMin: number | null = null;
             for (const seg of daySegs) {
-                const i = data.ts.indexOf(seg.ts);
-                if (i === -1) {continue;}
+                const i = tsIndex.get(seg.ts);
+                if (i === undefined) {continue;}
                 const t = data.temperature[i];
                 if (t !== null && t !== undefined && !Number.isNaN(t)) {
                     if (tempMax === null || t > tempMax) {tempMax = t;}
