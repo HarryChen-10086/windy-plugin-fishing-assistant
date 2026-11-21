@@ -17,7 +17,7 @@ windows and weather alerts.
 3. Paste the following URL and confirm:
 
    ```
-   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.1.0/plugin.min.js
+   https://windy-plugins.com/14016682/windy-plugin-fishing-assistant/1.1.1/plugin.min.js
    ```
 
 ### Option 2: Install from Marketplace
@@ -131,13 +131,27 @@ This project is open source under the [MIT License](./LICENSE).
 
 ## CHANGELOG
 
+-   1.1.1
+    -   Fixed sea conditions on days 4–5 of the forecast: wave data only covers 3 days, so the last available wave step was being reused and could add a phantom "rough sea" penalty outside its range.
+    -   Fixed the "Today" row: it is now picked by local date instead of by row position, so in negative-offset timezones yesterday is no longer labelled "Today" and the fifth day is no longer dropped.
+    -   Fixed the panel briefly showing the previous spot's weather after switching spots; out-of-order place-name lookups can no longer overwrite a newer spot.
+    -   Fixed the "Next hours" window and "today's best" freezing while the panel stayed open — both now follow the clock, and the current step is highlighted by actual time rather than by list position.
+    -   The panel now renders as soon as the main forecast arrives instead of waiting for the slowest request, failed loads show a translated message plus a Retry button, and severe-weather end time is no longer one step too late.
+    -   Alert times include the date and use the same timezone offset as the rest of the panel; the severe-weather banner carries a "Forecast" badge when you scrub away from now.
+    -   Wave period and wave-power use Windy's unit settings (`s`, `kW/m`) instead of a hard-coded unit and a bare number, and the rain tile is labelled with its accumulation window.
+    -   Changing the unit system in Windy now refreshes the displayed values immediately.
+    -   Localised the moon row, the Retry button and the missing CAP alert types (hail, volcanic ash, earthquake, landslide); removed full-width brackets from the English UI.
+    -   Loading and error states are announced to screen readers, and the score gauge is marked decorative.
+    -   Removed the `onparamsChanged` hook — it is not part of Windy's plugin API, so it never ran; URL parameters are handled in `onopen`.
+    -   Re-opening the same spot no longer refetches, daily summary mapping is bounds-checked, and a few per-render lookups were removed.
+    -   Unit tests grew from 95 to 133, covering the hourly window, wave range, severe-weather end time and daily summary mapping.
 -   1.1.0
     -   Fixed prime-time (golden hour) scoring on the 2nd–5th forecast days: they used the reference day's sunrise/sunset, so the wrong hours could get full marks.
     -   Fixed the blizzard safety penalty being counted twice for the same time step.
     -   Fixed humidity showing `NaN%` when dew-point data is missing.
     -   Fixed the Windows build command (a stray space kept the local dev server running, and `rm -rf` does not exist on Windows).
     -   Fixed the index disagreeing between the 1-hour (next hours) and 3-hour (5-day) forecast feeds: pressure deltas, precipitation and the storm/snow thresholds are now normalised to a 3-hour equivalent before scoring. No UI changes.
-    -   Added unit tests (90) covering the scoring rules, plugin parameters and both languages; they now run on every push in CI.
+    -   Added unit tests (95) covering the scoring rules, plugin parameters and both languages; they now run on every push in CI.
     -   Type checking (`svelte-check`) and ESLint are enforced in CI — every existing lint and type error has been fixed.
     -   The version number now has a single source of truth (`package.json`) and is synced to the plugin config and README automatically.
     -   Removed the beta banner at the bottom of the panel and replaced it with a "Project page on GitHub" link.
