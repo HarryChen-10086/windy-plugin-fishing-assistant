@@ -1,5 +1,5 @@
 <div class="plugin__mobile-header">
-    {title}
+    {t('pluginName')}
 </div>
 <section class="plugin__content fa-root">
     <!-- 标题即返回按钮：Windy 侧栏模板惯用 div + on:click，保持外观不变 -->
@@ -8,7 +8,7 @@
         class="plugin__title plugin__title--chevron-back"
         on:click={() => bcast.emit('rqstOpen', 'menu')}
     >
-        {title}
+        {t('pluginName')}
         {#if reverseName && loc}
             {@const { lat, lon } = loc}
             <div class="plugin__title__subtitle">
@@ -40,23 +40,30 @@
     </div>
 
     {#if loading}
-        <div class="fa-loading">{t('loading')}</div>
+        <div class="fa-loading" role="status" aria-live="polite">{t('loading')}</div>
     {/if}
 
     {#if error}
-        <div class="rounded-box bg-error size-s mt-10 fa-error">⚠️ {error}</div>
+        <div class="rounded-box bg-error size-s mt-10 fa-error" role="alert">
+            ⚠️ {error}
+            <button class="fa-retry" on:click={refresh}>{t('retry')}</button>
+        </div>
     {/if}
 
     {#if air && nowScore}
-        {@const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0}
-        {@const nowIdx = Math.max(0, air.data.ts.indexOf(nowScore.ts))}
+        {@const offset = tzOffsetOf()}
         {@const weather = weatherText(nowScore.icon, lang)}
         {@const level = scoreLevel(nowScore.total)}
 
         <!-- 恶劣天气警示（最上方） -->
         {#if currentSevere.length > 0}
-            <div class="fa-warn">
-                <div class="fa-warn-title">⚠️ {t('severeTitle')}</div>
+            <div class="fa-warn" role="alert">
+                <div class="fa-warn-title">
+                    ⚠️ {t('severeTitle')}
+                    {#if !isNowTime}
+                        <span class="fa-fcst-badge">{t('forecastTime')}</span>
+                    {/if}
+                </div>
                 {#each currentSevere as c}
                     <div class="fa-warn-item">
                         <span class="fa-warn-emoji">{severeEmoji(c.kind)}</span>
@@ -85,7 +92,7 @@
             </div>
             <div class="fa-hero">
                 <div class="fa-gauge">
-                    <svg viewBox="0 0 120 120" width="120" height="120">
+                    <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true" focusable="false">
                         <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="11" />
                         <circle
                             cx="60"
@@ -147,7 +154,7 @@
                     <span class="fa-bd-val">{nowScore.time}/15</span>
                 </div>
                 <div class="fa-bd-row">
-                    <span class="fa-bd-name">{t('scoreMoon')}（{moonPhaseText(air.data.moonPhase[nowIdx], lang)}）</span>
+                    <span class="fa-bd-name">{t('moonLine', { phase: moonPhaseText(air.data.moonPhase[nowIdx], lang) })}</span>
                     <div class="fa-bd-bar"><div class="fa-bd-fill" style="width: {(nowScore.moon / 10) * 100}%"></div></div>
                     <span class="fa-bd-val">{nowScore.moon}/10</span>
                 </div>
@@ -193,7 +200,7 @@
                 <div class="fa-item"><span class="fa-item-icon">📈</span><span class="fa-item-label">{t('lblTrend')}</span><span class="fa-item-val">{pressureTrend(nowIdx, lang)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">💧</span><span class="fa-item-label">{t('lblHumidity')}</span><span class="fa-item-val">{humidityText(nowIdx)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">☁️</span><span class="fa-item-label">{t('lblClouds')}</span><span class="fa-item-val">{cloudText(nowIdx)}</span></div>
-                <div class="fa-item"><span class="fa-item-icon">🌧️</span><span class="fa-item-label">{t('lblPrecip')}</span><span class="fa-item-val">{rainText(nowIdx)}</span></div>
+                <div class="fa-item"><span class="fa-item-icon">🌧️</span><span class="fa-item-label">{t('lblPrecipStep', { h: airStepHours })}</span><span class="fa-item-val">{rainText(nowIdx)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">🌙</span><span class="fa-item-label">{t('lblMoon')}</span><span class="fa-item-val">{moonPhaseText(air.data.moonPhase[nowIdx], lang)}</span></div>
                 <div class="fa-item"><span class="fa-item-icon">⛰️</span><span class="fa-item-label">{t('lblElevation')}</span><span class="fa-item-val">{elevationText()}</span></div>
             </div>
@@ -228,9 +235,9 @@
                     {/if}
                 </div>
                 <div class="fa-hours">
-                    {#each hourly12 as h, hi}
+                    {#each hourly12 as h}
                         {@const hl = scoreLevel(h.total)}
-                        <div class="fa-hour" class:fa-hour--now={hi === 0}>
+                        <div class="fa-hour" class:fa-hour--now={isCurrentStep(h.ts, nowTs, hourlyStepH)}>
                             <div class="fa-hour-time">{formatLocalTime(h.ts, offset)}</div>
                             <div class="fa-hour-icon">{weatherText(h.icon, lang).emoji}</div>
                             <div class="fa-hour-score">{h.total}</div>
@@ -248,11 +255,12 @@
         <div class="fa-card">
             <div class="fa-section-title">{t('nextDays')}</div>
             <div class="fa-days">
-                {#each daily.slice(0, 5) as d, di}
+                {#each upcomingDays as d}
                     {@const dl = scoreLevel(d.best.total)}
-                    <div class="fa-day" class:fa-day--today={di === 0}>
+                    {@const isToday = localDayKey(d.timestamp, offset) === todayKey}
+                    <div class="fa-day" class:fa-day--today={isToday}>
                         <div class="fa-day-head">
-                            <span class="fa-day-weekday">{di === 0 ? t('today') : weekdayName(d.timestamp, offset, lang)}</span>
+                            <span class="fa-day-weekday">{isToday ? t('today') : weekdayName(d.timestamp, offset, lang)}</span>
                             <span class="fa-day-date">{t('dayLabel', { day: d.day })}</span>
                             <span class="fa-day-icon">{weatherText(d.icon, lang).emoji}</span>
                         </div>
@@ -276,17 +284,17 @@
         </div>
 
         <!-- 海浪与海况 -->
-        {#if waves && hasWavesData(waves)}
-            {@const wIdx = closestIndex(waves.data.ts, nowScore.ts)}
+        {#if waves && hasWavesData(waves) && waveIdx !== null}
+            {@const wIdx = waveIdx}
             <div class="fa-card">
                 <div class="fa-section-title">{t('wavesTitle')}</div>
                 <div class="fa-grid">
                     <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblWaveHeight')}</span><span class="fa-item-val">{wavesText(waves.data.waves[wIdx])}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">🔄</span><span class="fa-item-label">{t('lblPeriod')}</span><span class="fa-item-val">{val(waves.data.wavesPeriod[wIdx])} s</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">🔄</span><span class="fa-item-label">{t('lblPeriod')}</span><span class="fa-item-val">{periodText(waves.data.wavesPeriod[wIdx])}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🧭</span><span class="fa-item-label">{t('lblWaveDir')}</span><span class="fa-item-val">{dir2compass(waves.data.wavesDir[wIdx], lang)}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🌊</span><span class="fa-item-label">{t('lblSwell1')}</span><span class="fa-item-val">{wavesSwell1Text(wIdx, lang)}</span></div>
                     <div class="fa-item"><span class="fa-item-icon">🌡️</span><span class="fa-item-label">{t('lblSeaTemp')}</span><span class="fa-item-val">{sstText()}</span></div>
-                    <div class="fa-item"><span class="fa-item-icon">⚡</span><span class="fa-item-label">{t('lblWavePower')}</span><span class="fa-item-val">{val(waves.data.wavesPower[wIdx])}</span></div>
+                    <div class="fa-item"><span class="fa-item-icon">⚡</span><span class="fa-item-label">{t('lblWavePower')}</span><span class="fa-item-val">{wavePowerText(waves.data.wavesPower[wIdx])}</span></div>
                 </div>
             </div>
         {/if}
@@ -353,21 +361,23 @@
         weekdayName,
     } from './i18n';
     import {
-        closestIndex,
+        closestIndexWithin,
         closestSegment,
         computeDaily,
         computeSegments,
         formatLocalDateTime,
         formatLocalTime,
+        localDayKey,
         primeWindows,
         relativeHumidity,
         scoreLevel,
         severeEndTs,
+        stepHoursOf,
     } from './fishingIndex';
+    import { isCurrentStep, pickHourlyWindow } from './hourlyWindow';
     import { isSameSpot, parseLatLonParams, toLatLonParams } from './pluginParams';
 
     import type { LatLon } from '@windy/interfaces';
-    import type { overlays } from '@windy/rootScope';
 
     import type {
         CapAlertHeadline,
@@ -381,11 +391,12 @@
 
     import type { DayScore, PrimeWindow, SegmentScore } from './fishingIndex';
 
-    /** 地图叠加层标识（由 rootScope 的 overlays 常量派生） */
-    type Overlays = (typeof overlays)[number];
+    /** 快捷图层按钮可切换的叠加层（字面量联合：写错图层名在编译期就会报错） */
+    type LayerOverlay = 'wind' | 'gust' | 'rain' | 'temp' | 'waves' | 'sst';
 
-    const { title, name } = config;
+    const { name } = config;
     const HOUR = 3600 * 1000;
+    const MINUTE = 60 * 1000;
     const INCLUDE = { header: true, celestial: true, meteogram: true, summary: true } as const;
     const WAVES_INCLUDE = { header: true, celestial: true, summary: true } as const;
     const HOURLY_INCLUDE = { header: true, celestial: true } as const;
@@ -419,8 +430,9 @@
         lang = lang === 'en' ? 'zh' : 'en';
         setLang(lang);
         saveLang(lang);
-        if (loc && reverseName) {
-            setTitle(`🎣 ${t('pluginName')} · ${reverseName}`);
+        // 地名可能为空（反向地理编码失败），此时也要把标题的语言换过来
+        if (loc) {
+            applyTitle();
         }
     };
 
@@ -438,23 +450,42 @@
     let daily: DayScore[] = [];
     let primes: PrimeWindow[] = [];
     let nowScore: SegmentScore | null = null;
+    /** nowScore 在 air.data 中的下标，供模板取温度/湿度/云量等原始字段 */
+    let nowIdx = 0;
     let bestToday: SegmentScore | null = null;
 
     /** 未来小时逐小时指数（基于接口实际返回步长的数据） */
     let hourlySegments: SegmentScore[] = [];
     /** 接口实际返回的步长（小时），用于界面标注与窗口计算 */
     $: hourlyStepH = hourlySegments.length >= 2 ? hourlyStepOf(hourlySegments) : 1;
-    /** 按实际步长取未来 12 个点：1h → 12 小时窗口，3h → 36 小时窗口 */
-    $: hourly12 = hourlySegments
-        .filter(s => s.ts >= Date.now() && s.ts <= Date.now() + hourlyStepH * 12 * HOUR)
-        .slice(0, 12);
+    /**
+     * 当前真实的「现在」时刻（毫秒）。
+     *
+     * 单独用 state 而不是在响应式语句里直接调 Date.now()：Svelte 只跟踪语句里
+     * 读写到的 state，Date.now() 不是 state，面板开久了窗口会一直停在打开的瞬间。
+     * 定时器 + 时间条事件都会推进它，窗口随之滑动。
+     */
+    let nowTs = Date.now();
+    /** 按实际步长取未来 12 个点（含正在进行的这一步）：1h → 12h，3h → 36h */
+    $: hourly12 = pickHourlyWindow(hourlySegments, nowTs, hourlyStepH, 12);
 
     /** Windy 时间条当前时刻（毫秒），用于计算“当前”钓鱼指数 */
     let selectedTime = Date.now();
     /** 所选时刻是否即“现在”（界面徽章用） */
     let isNowTime = true;
-    /** store.on('timestamp') 订阅 id */
+    /** store.on('timestamp') 订阅 id，以及推进 nowTs 的定时器 id */
     let timeListenerId = 0;
+    let tickTimerId: ReturnType<typeof setInterval> | null = null;
+    /** bcast.on('metricChanged') 订阅 id */
+    let metricListenerId = 0;
+    /** 大气预报的实际步长（小时），用于给累计量标注时间窗口 */
+    let airStepHours = 3;
+    /** 当前时刻对应的海浪数据下标，超出海浪预报覆盖范围时为 null */
+    let waveIdx: number | null = null;
+    /** 海浪预报的实际步长（小时） */
+    let waveStepHours = 3;
+    /** 逐小时点预报的原始数据，供海浪晚到时重算使用 */
+    let hourlyData: { data: DataHash2; celestial: Celestial | undefined } | null = null;
 
     /** 当前存在的恶劣条件（用于顶部警示） */
     interface CurrentSevere {
@@ -467,6 +498,8 @@
     let marker: L.Marker | null = null;
     let scListenerId = 0;
     let requestSeq = 0;
+    /** 反向地理编码的请求序号，防止旧请求覆盖新钓点的地名 */
+    let reverseSeq = 0;
 
     const wavesModelOf = (model: string): string => {
         if (model === 'gfs') {return 'gfsWaves';}
@@ -497,6 +530,15 @@
     };
 
     /**
+     * 更新标签页标题。地名（reverseName）可能为空，此时只显示插件名，
+     * 不要把 `· ` 后面的空字符串留在标题里。
+     */
+    const applyTitle = () => {
+        const place = reverseName ? ` · ${reverseName}` : '';
+        setTitle(`🎣 ${_translate('pluginName', undefined, lang)}${place}`);
+    };
+
+    /**
      * 设置钓点并加载数据。
      * @param latLon 目标经纬度
      * @param syncUrl 是否把钓点写回 URL（由 URL/外部参数驱动的调用无需再写）
@@ -505,20 +547,33 @@
         const next = toLatLonParams(latLon.lat, latLon.lon);
         const changed = !loc || !isSameSpot(loc, next);
         loc = next;
+        if (!changed && air) {
+            // 同一个点重复点击（或 onopen 被重复调用）：标记与数据都无需重来，
+            // 只把标记摆正，避免白白打 4 个网络请求
+            showMarker(latLon.lat, latLon.lon);
+            return;
+        }
         if (changed && syncUrl) {
             // 依据 Windy 文档：自身参数变化时用 setUrl 同步 URL，使链接可分享、刷新后保持钓点
             setUrl(name, next);
         }
+        // 换点后先清掉上一个点的地名，避免新坐标配旧地名
+        reverseName = '';
         hideMarker();
         showMarker(latLon.lat, latLon.lon);
+        const myRevSeq = ++reverseSeq;
         reverse
             .get(loc)
             .then(({ name: n }) => {
+                // 快速连续换点时丢弃过期结果，防止旧地名覆盖新钓点
+                if (myRevSeq !== reverseSeq) {return;}
                 reverseName = n;
-                setTitle(`🎣 ${t('pluginName')} · ${n}`);
+                applyTitle();
             })
             .catch(() => {
+                if (myRevSeq !== reverseSeq) {return;}
                 reverseName = '';
+                applyTitle();
             });
         loadData(latLon.lat, latLon.lon);
     };
@@ -532,16 +587,48 @@
     };
 
     /**
+     * 当前地的 UTC 偏移（小时）。
+     * 依次取 celestial（最准）、header.utcOffset，都没有时退回 UTC，
+     * 界面与评分必须用同一个值，否则时间显示会整体错几个小时。
+     */
+    const tzOffsetOf = (): number => air?.celestial?.TZoffset ?? air?.header.utcOffset ?? 0;
+
+    /**
+     * 给定时刻对应的海浪数据下标。
+     * 超出海浪预报覆盖范围时返回 null —— 海浪只取 3 天而大气取 5 天，
+     * 直接取最近点会把最后一步的浪高一直沿用下去，第 4-5 天会凭空出现“大浪”。
+     */
+    const waveIndexOf = (ts: number): number | null => {
+        if (!waves?.data?.ts) {return null;}
+        const maxGap = Math.max(waveStepHours, 1) * 1.5 * HOUR;
+        return closestIndexWithin(waves.data.ts, ts, maxGap);
+    };
+
+    /** 本地「今天」的日期键，用于给未来几天列表判断哪一行才是今天 */
+    $: todayKey = localDayKey(nowTs, tzOffsetOf());
+    /**
+     * 未来几天列表：只保留今天及以后的日子。
+     * 不能靠「第 0 项就是今天」——接口返回的 5 天数据在负时区下会从昨天开始，
+     * 那样既会把昨天标成 Today，又会因为 slice(0, 5) 丢掉最后一天。
+     */
+    $: upcomingDays = daily
+        .filter(d => localDayKey(d.timestamp, tzOffsetOf()) >= todayKey)
+        .slice(0, 5);
+
+    /**
      * 根据 Windy 时间条当前时刻重算“当前”钓鱼指数、
      * 所选时刻所在“日”的最佳时段以及恶劣天气警示。
      */
     const applySelectedTime = () => {
         if (!air || segments.length === 0) {return;}
         nowScore = closestSegment(segments, selectedTime);
-        isNowTime = !!nowScore && closestSegment(segments, Date.now())?.ts === nowScore.ts;
+        isNowTime = !!nowScore && closestSegment(segments, nowTs)?.ts === nowScore.ts;
 
         // 当前恶劣条件（用于顶部警示）
         const nowSegIdx = nowScore ? segments.indexOf(nowScore) : -1;
+        // 同一时间步在原始点预报里的下标，模板用它取温度/湿度/云量等字段。
+        // 放在这里算一次，避免模板每次重渲染都做一遍 indexOf（长度可达上百）
+        nowIdx = nowScore ? Math.max(0, air.data.ts.indexOf(nowScore.ts)) : 0;
         currentSevere =
             nowSegIdx >= 0
                 ? segments[nowSegIdx].severeKinds.map(kind => ({
@@ -550,26 +637,25 @@
                   }))
                 : [];
 
-        // 所选时刻所在“日”的最佳时段
-        const offset = air.celestial?.TZoffset ?? air.header.utcOffset ?? 0;
-        const dayTs = selectedTime + offset * HOUR;
-        const dayKey =
-            new Date(dayTs).getUTCFullYear() * 10000 +
-            (new Date(dayTs).getUTCMonth() + 1) * 100 +
-            new Date(dayTs).getUTCDate();
-        const daySegs = segments.filter(seg => {
-            const d = new Date(seg.ts + offset * HOUR);
-            return (
-                d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate() ===
-                dayKey
-            );
-        });
+        // 所选时刻所在「本地日」的最佳时段
+        const offset = tzOffsetOf();
+        const selectedDay = localDayKey(selectedTime, offset);
+        const stepMs = Math.max(airStepHours, 1) * HOUR;
+        let daySegs = segments.filter(seg => localDayKey(seg.ts, offset) === selectedDay);
+        if (selectedDay === localDayKey(nowTs, offset)) {
+            // 看「今天」时排除已经过去的时间步，否则下午还在推荐清晨那个黄金时段
+            daySegs = daySegs.filter(seg => seg.ts + stepMs > nowTs);
+        }
+        // 当天已无剩余数据就干脆不显示，而不是把「当前」冒充成「当日最佳」
         bestToday = daySegs.length
             ? daySegs.reduce((a, b) => (b.total > a.total ? b : a), daySegs[0])
-            : nowScore;
+            : null;
+
+        // 「当前」时刻对应的海浪下标（超出海浪预报覆盖范围时为 null）
+        waveIdx = nowScore ? waveIndexOf(nowScore.ts) : null;
     };
 
-    /** 清空当前钓点的全部计算结果（加载失败时避免继续显示上一个钓点的数据） */
+    /** 清空当前钓点的全部计算结果（换点/加载失败时避免继续显示上一个钓点的数据） */
     const resetData = () => {
         air = null;
         waves = null;
@@ -578,84 +664,136 @@
         daily = [];
         primes = [];
         nowScore = null;
+        nowIdx = 0;
         bestToday = null;
         hourlySegments = [];
         currentSevere = [];
+        waveIdx = null;
+        hourlyData = null;
     };
 
-    /** 加载 Windy 点预报数据（大气 + 海浪 + 预警） */
+    /** 用当前的 air / waves / hourly 数据重算所有派生结果 */
+    const recompute = () => {
+        if (!air) {return;}
+        airStepHours = stepHoursOf(air.data.ts);
+        waveStepHours = waves?.data?.ts ? stepHoursOf(waves.data.ts) : airStepHours;
+        // 海浪数据可能比大气数据晚到，那时要带上浪高重算一遍安全扣分
+        segments = computeSegments(air.data, air.celestial, waves?.data ?? null);
+        primes = primeWindows(air.celestial);
+        daily = computeDaily(air.data, segments, air.summary, air.celestial);
+        if (hourlyData) {
+            hourlySegments = computeSegments(hourlyData.data, hourlyData.celestial, waves?.data ?? null);
+        }
+        applySelectedTime();
+    };
+
+    /**
+     * 加载 Windy 点预报数据（大气 + 海浪 + 预警 + 逐小时）。
+     *
+     * 四个请求各自独立落地：大气数据一到就渲染主内容，海浪/预警/逐小时随后补齐。
+     * 如果等 Promise.allSettled 全部 resolve，任何一个接口卡住都会让整个面板
+     * 永远停在 “Loading…”，而主预报其实早就到手了。
+     */
     const loadData = async (lat: number, lon: number) => {
         const mySeq = ++requestSeq;
         loading = true;
         error = '';
-        try {
-            const [airRes, wavesRes, alertsRes, hourlyRes] = await Promise.allSettled([
-                getPointForecastData(selectedModel, { lat, lon, days: 5, step: 3, source: 'detail' }, INCLUDE),
-                getPointForecastData(wavesModelOf(selectedModel), { lat, lon, days: 3, step: 3, source: 'detail' }, WAVES_INCLUDE),
-                getCapAlertsSummary({ lat, lon }, 'detail'),
-                getPointForecastData(selectedModel, { lat, lon, days: 2, step: 1, source: 'detail' }, HOURLY_INCLUDE),
-            ]);
+        // 换点瞬间先清空：时间条事件会立刻用 segments 重算，不清就会拿旧钓点的
+        // 数据算出「新钓点的指数」并显示在新地名下面
+        resetData();
 
-            // 丢弃过期请求的结果
-            if (mySeq !== requestSeq) {return;}
+        const stale = () => mySeq !== requestSeq;
 
-            // 先处理海浪数据，供指数计算中的大浪检测使用
-            if (wavesRes.status === 'fulfilled' && wavesRes.value.data?.data) {
-                waves = wavesRes.value.data as unknown as WeatherDataPayload2<WavesDataHash2>;
-            } else {
-                waves = null;
-            }
-
-            if (airRes.status === 'fulfilled') {
-                const payload = airRes.value.data;
+        const airTask = getPointForecastData(
+            selectedModel,
+            { lat, lon, days: 5, step: 3, source: 'detail' },
+            INCLUDE,
+        )
+            .then(res => {
+                if (stale()) {return;}
+                const payload = res.data;
                 if (!payload || !payload.data) {
                     throw new Error(_translate('errNoForecast', undefined, lang));
                 }
                 air = payload as unknown as WeatherDataPayload2<DataHash2>;
+                recompute();
+            })
+            .catch(reason => {
+                if (stale()) {return;}
+                // 原始错误只留在控制台，界面上一律用本地化文案
+                console.error('Fishing assistant error:', reason);
+                resetData();
+                error = _translate('errFetchFailed', undefined, lang);
+            })
+            .finally(() => {
+                if (!stale()) {loading = false;}
+            });
 
-                // 计算各时段钓鱼指数（含恶劣条件安全扣分），并按时间条时刻定位“当前”指数
-                segments = computeSegments(air.data, air.celestial, waves?.data ?? null);
-                primes = primeWindows(air.celestial);
-                daily = computeDaily(air.data, segments, air.summary, air.celestial);
-                applySelectedTime();
-            } else {
-                throw new Error(
-                    (airRes.reason as Error)?.message || _translate('errFetchFailed', undefined, lang),
-                );
-            }
+        const wavesTask = getPointForecastData(
+            wavesModelOf(selectedModel),
+            { lat, lon, days: 3, step: 3, source: 'detail' },
+            WAVES_INCLUDE,
+        )
+            .then(res => {
+                if (stale()) {return;}
+                const payload = res.data;
+                if (payload?.data) {
+                    waves = payload as unknown as WeatherDataPayload2<WavesDataHash2>;
+                    // 大气数据已在场时，带上浪高重算一遍（含「大浪」安全扣分）
+                    if (air) {recompute();}
+                }
+            })
+            .catch(() => {
+                // 内陆/无海浪数据是正常情况，静默忽略
+            });
 
-            if (alertsRes.status === 'fulfilled' && alertsRes.value.data) {
-                alerts = alertsRes.value.data;
-            } else {
-                alerts = [];
-            }
+        const alertsTask = getCapAlertsSummary({ lat, lon }, 'detail')
+            .then(res => {
+                if (stale()) {return;}
+                alerts = res.data ?? [];
+            })
+            .catch(() => {
+                /* 预警非核心数据，失败不影响指数 */
+            });
 
-            // 未来小时逐小时指数：仅用点预报，按实际步长展示 12 个点（1h → 12h，3h → 36h）
-            hourlySegments = [];
-            if (hourlyRes.status === 'fulfilled' && hourlyRes.value.data?.data) {
-                const pf = hourlyRes.value.data;
-                hourlySegments = computeSegments(
-                    pf.data as unknown as DataHash2,
-                    pf.celestial as unknown as Celestial | undefined,
-                    waves?.data ?? null,
-                );
-            }
-        } catch (e) {
-            if (mySeq !== requestSeq) {return;}
-            // 只在开发者的控制台保留原始错误；界面上展示本地化文案
-            console.error('Fishing assistant error:', e);
-            resetData();
-            error = (e as Error)?.message || String(e);
-        } finally {
-            if (mySeq === requestSeq) {
-                loading = false;
-            }
-        }
+        const hourlyTask = getPointForecastData(
+            selectedModel,
+            { lat, lon, days: 2, step: 1, source: 'detail' },
+            HOURLY_INCLUDE,
+        )
+            .then(res => {
+                if (stale()) {return;}
+                const payload = res.data;
+                if (!payload?.data) {return;}
+                hourlyData = {
+                    data: payload.data as unknown as DataHash2,
+                    celestial: payload.celestial as unknown as Celestial | undefined,
+                };
+                if (air) {recompute();}
+            })
+            .catch(() => {
+                /* 逐小时仅用点预报，失败时隐藏该卡片 */
+            });
+
+        // 逐个请求自己消化错误，这里只需等它们都结束，不会被任何一个卡死主流程
+        await Promise.all([airTask, wavesTask, alertsTask, hourlyTask]);
     };
 
     /** 手动刷新（切换模型后） */
     const refresh = () => {
         if (loc) {loadData(loc.lat, loc.lon);}
+    };
+
+    /**
+     * 只重算展示层（不重新请求数据）。
+     * 用户切换 Windy 的单位设置时用：所有数值都经 metrics.*.convertValue 输出，
+     * 单位变了必须让 Svelte 重新跑一遍模板，而 metrics 内部状态不是 Svelte 的
+     * 响应式变量，只能靠把模板读到的 state 换成新引用触发重渲染。
+     */
+    const refreshView = () => {
+        if (air) {air = { ...air };}
+        if (waves) {waves = { ...waves };}
+        nowTs = Date.now();
     };
 
     /** 定位到我的位置 */
@@ -672,15 +810,18 @@
             });
     };
 
-    /** 快捷切换地图图层 */
-    const setOverlay = (ovl: string) => {
-        store.set('overlay', ovl as Overlays);
+    /**
+     * 快捷切换地图图层。
+     * 图层名收窄成 LayerOverlay，写错在编译期就报错；`store.set` 对 'overlay'
+     * 是异步 store，返回 Promise，这里显式忽略（切换失败不影响插件其它功能）。
+     */
+    const setOverlay = (ovl: LayerOverlay) => {
+        void Promise.resolve(store.set('overlay', ovl)).catch(() => {
+            /* 图层切换失败无需打扰用户 */
+        });
     };
 
-    /** 工具函数（用于模板展示） */
-    const val = (x: number | null | undefined): string =>
-        x === null || x === undefined || Number.isNaN(x) ? '--' : String(Math.round(x * 10) / 10);
-
+    /** 工具函数：数值保留一位小数（无单位的纯数字展示才用它） */
     const tempText = (x: number | null | undefined): string =>
         x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.temp.convertValue(x);
 
@@ -692,6 +833,16 @@
 
     const wavesText = (x: number | null | undefined): string =>
         x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.waves.convertValue(x);
+
+    /** 海浪周期：Windy 的 metrics 里有 period（秒），交给它决定单位与小数位 */
+    const periodText = (x: number | null | undefined): string =>
+        x === null || x === undefined || Number.isNaN(x) ? '--' : metrics.period.convertValue(x);
+
+    /** 波浪功率：Windy 的 metrics 里有 wavePower（kW/m） */
+    const wavePowerText = (x: number | null | undefined): string =>
+        x === null || x === undefined || Number.isNaN(x)
+            ? '--'
+            : metrics.wavePower.convertValue(x);
 
     /** 气压变化趋势：单位换算交给 Windy 的 metrics，文字走 i18n */
     const pressureTrend = (idx: number, langSel: Lang): string => {
@@ -722,8 +873,9 @@
     const rainText = (idx: number): string => {
         if (!air) {return '--';}
         const p = air.data.precipAmount[idx];
-        // 无降水数据时显示 0（单位交由 metrics 决定：mm / in）
-        if (p === null || p === undefined || Number.isNaN(p)) {return metrics.rain.convertValue(0);}
+        // 缺数据时老实显示 '--'：点预报的 precipAmount 是「每个时间步的累计量」，
+        // 把 null 当成 0 会在雷雨时显示“0 mm”，等于编数据
+        if (p === null || p === undefined || Number.isNaN(p)) {return '--';}
         return metrics.rain.convertValue(p);
     };
 
@@ -763,7 +915,9 @@
         if (h === null || h === undefined || Number.isNaN(h)) {return '--';}
         const per = waves.data.swell1Period?.[idx];
         const dir = waves.data.swell1Dir?.[idx];
-        return `${wavesText(h)}${per != null && !Number.isNaN(per) ? ` / ${Math.round(per)}s` : ''}${dir != null && !Number.isNaN(dir) ? ` ${dir2compass(dir, langSel)}` : ''}`;
+        const perText = per != null && !Number.isNaN(per) ? ` / ${periodText(per)}` : '';
+        const dirText = dir != null && !Number.isNaN(dir) ? ` ${dir2compass(dir, langSel)}` : '';
+        return `${wavesText(h)}${perText}${dirText}`;
     };
 
     const sstText = (): string => {
@@ -786,15 +940,20 @@
     const alertSeverityClass = (sev: string): boolean =>
         sev === 'S' || sev === 'E' || sev === 'Severe' || sev === 'Extreme';
 
+    /**
+     * 预警时段文字。
+     * 用「M/D HH:MM」而不是只有时刻：跨天的预警只显示 22:00 – 04:00 会让人
+     * 以为时间倒流；偏移量与面板其它时间显示共用 tzOffsetOf()，不单独退回 UTC。
+     */
     const alertTimeText = (a: CapAlertHeadline): string => {
         if (!air) {return '';}
-        const offset = air.celestial?.TZoffset ?? 0;
-        return `${formatLocalTime(a.start, offset)} – ${formatLocalTime(a.end, offset)}`;
+        const offset = tzOffsetOf();
+        return `${formatLocalDateTime(a.start, offset)} – ${formatLocalDateTime(a.end, offset)}`;
     };
 
     /**
      * 插件打开时：优先使用 URL / 上下文菜单传入的地点，否则使用地图中心。
-     * 依据 Windy 文档，onopen 里不改 URL 与标题（那是 onparamsChanged 的职责），
+     * 依据 Windy 文档，onopen 里不改 URL 与标题，
      * 且 onopen 可能被多次调用，这里不挂任何监听器。
      */
     export const onopen = (params?: unknown) => {
@@ -807,20 +966,6 @@
             const c = map.getCenter();
             setLocation({ lat: c.lat, lon: c.lng }, false);
         }
-    };
-
-    /**
-     * URL / 外部参数变化时调用（刷新页面、打开分享链接、其它插件带参打开本插件）。
-     * 依据 Windy 文档，参数变化后由插件自己写回 URL 与标题，避免与 onopen 相互覆盖。
-     */
-    export const onparamsChanged = (params?: unknown) => {
-        const target = parseLatLonParams(params);
-        // 插件尚未打开（还没确定钓点）或参数非法时忽略
-        if (!target || !loc) {return;}
-        // setLocation() 自己写 URL 会回调到这里，同一个点直接返回，避免重复加载
-        if (isSameSpot(loc, target)) {return;}
-        map.setView([target.lat, target.lon], Math.max(8, map.getZoom()), { animate: true });
-        setLocation(target, false);
     };
 
     onMount(() => {
@@ -844,11 +989,29 @@
             selectedTime = ts;
             applySelectedTime();
         });
+
+        // 推进「现在」：时间条不动时 Date.now() 不会触发 Svelte 重算，
+        // 未来小时窗口与“当日最佳”需要自己走时钟（每分钟一次足够）
+        tickTimerId = setInterval(() => {
+            nowTs = Date.now();
+            if (air) {applySelectedTime();}
+        }, MINUTE);
+
+        // 用户切换 Windy 单位后，界面上所有 metrics.*.convertValue 的结果都要重算；
+        // Svelte 不会因为模块内部状态变化而重渲染，必须显式触发一次
+        metricListenerId = bcast.on('metricChanged', () => {
+            refreshView();
+        });
     });
 
     onDestroy(() => {
         singleclick.off(scListenerId);
         store.off(timeListenerId);
+        bcast.off(metricListenerId);
+        if (tickTimerId !== null) {
+            clearInterval(tickTimerId);
+            tickTimerId = null;
+        }
         hideMarker();
     });
 </script>
@@ -917,6 +1080,27 @@
 
     .fa-error {
         padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .fa-retry {
+        margin-left: auto;
+        padding: 3px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.15s;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
     }
 
     .fa-warn {
