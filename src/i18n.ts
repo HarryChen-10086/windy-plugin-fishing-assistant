@@ -33,6 +33,8 @@ const en = {
     scoreTemp: 'Temperature',
     scoreTime: 'Time of day',
     scoreMoon: 'Moon',
+    // 月相名称按界面语言取词，括号用半角（英文界面不应出现中文全角括号）
+    moonLine: 'Moon ({phase})',
     scoreSafety: 'Safety',
     // 恶劣天气警示
     severeTitle: 'Adverse Conditions',
@@ -50,6 +52,8 @@ const en = {
     lblHumidity: 'Humidity',
     lblClouds: 'Clouds',
     lblPrecip: 'Precip',
+    // 点预报的降水量是"每个时间步的累计量"（3h 步长即 mm/3h），标签必须带上窗口
+    lblPrecipStep: 'Precip ({h}h)',
     lblMoon: 'Moon',
     lblElevation: 'Elevation',
     // 日出日落与黄金时段
@@ -98,6 +102,8 @@ const en = {
     errNoForecast: "No forecast data for this spot (it may be outside the selected model's coverage)",
     errFetchFailed: 'Failed to fetch weather data',
     errGps: 'Unable to get your GPS position',
+    // 失败后重试按钮
+    retry: 'Retry',
 } as const;
 
 /** 中文翻译表 */
@@ -117,6 +123,7 @@ const zh: Record<keyof typeof en, string> = {
     scoreTemp: '温度',
     scoreTime: '时段',
     scoreMoon: '月相',
+    moonLine: '月相（{phase}）',
     scoreSafety: '安全',
     // 恶劣天气警示
     severeTitle: '恶劣天气提示',
@@ -133,6 +140,7 @@ const zh: Record<keyof typeof en, string> = {
     lblHumidity: '湿度',
     lblClouds: '云量',
     lblPrecip: '降水',
+    lblPrecipStep: '降水（{h}h）',
     lblMoon: '月相',
     lblElevation: '海拔',
     sunTitle: '日出日落与黄金时段',
@@ -174,6 +182,7 @@ const zh: Record<keyof typeof en, string> = {
     errNoForecast: '未取得该地点的预报数据（可能不在所选模型的覆盖范围内）',
     errFetchFailed: '获取气象数据失败',
     errGps: '无法获取 GPS 位置',
+    retry: '重试',
 };
 
 export type TranslationKey = keyof typeof en;
@@ -356,6 +365,9 @@ export const levelLabel = (level: number, lang: Lang = currentLang): string => {
  * 预警类型 -> 可读文本。
  * Windy 的 CapAlertType 是单字母代码（T=雷暴、H=高温、W=大风…），
  * 这里同时兼容部分来源直接给出的完整英文名。
+ *
+ * 注意：type 的 E 是「地震」（Earthquake），而 severity 的 E 是「极端」（Extreme），
+ * 同一个字母在两套编码里含义不同，查表时不要串用。
  */
 export const alertTypeText = (type: string, lang: Lang = currentLang): string => {
     const codeMap: Record<string, { en: string; zh: string }> = {
@@ -372,6 +384,11 @@ export const alertTypeText = (type: string, lang: Lang = currentLang): string =>
         Q: { en: 'Air quality', zh: '空气质量' },
         S: { en: 'Snow / ice', zh: '降雪' },
         A: { en: 'Avalanche', zh: '雪崩' },
+        P: { en: 'Hail', zh: '冰雹' },
+        V: { en: 'Volcanic ash', zh: '火山灰' },
+        E: { en: 'Earthquake', zh: '地震' },
+        M: { en: 'Landslide', zh: '滑坡' },
+        '-': { en: 'Unknown hazard', zh: '未知灾害' },
     };
     const code = codeMap[type];
     if (code) {return lang === 'en' ? code.en : code.zh;}
@@ -391,6 +408,12 @@ export const alertTypeText = (type: string, lang: Lang = currentLang): string =>
         Avalanche: { en: 'Avalanche', zh: '雪崩' },
         Fire: { en: 'Fire', zh: '火险' },
         Tornado: { en: 'Tornado', zh: '龙卷风' },
+        Hail: { en: 'Hail', zh: '冰雹' },
+        VolcanicAsh: { en: 'Volcanic ash', zh: '火山灰' },
+        Earthquake: { en: 'Earthquake', zh: '地震' },
+        Landslide: { en: 'Landslide', zh: '滑坡' },
+        AirQuality: { en: 'Air quality', zh: '空气质量' },
+        SnowIce: { en: 'Snow / ice', zh: '降雪' },
     };
     const full = fullMap[type];
     return full ? (lang === 'en' ? full.en : full.zh) : type;
@@ -399,6 +422,9 @@ export const alertTypeText = (type: string, lang: Lang = currentLang): string =>
 /**
  * 预警级别 -> 可读文本。
  * Windy 的 CapAlertSeverity 是单字母代码（M=中度、S=严重、E=极端、A=未知）。
+ *
+ * 注意：此处的 E 是「极端」（Extreme），与 alertTypeText 里 type 的 E（地震 Earthquake）无关，
+ * 两套单字母编码互不相通，不要因为字母相同就复用映射。
  */
 export const alertSeverityText = (sev: string, lang: Lang = currentLang): string => {
     const codeMap: Record<string, { en: string; zh: string }> = {

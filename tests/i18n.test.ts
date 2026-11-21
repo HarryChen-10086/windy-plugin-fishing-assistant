@@ -53,6 +53,10 @@ describe('词表', () => {
         expect(Object.keys(translations.zh).sort()).toEqual(keys);
     });
 
+    it('中英 key 顺序一致（方便人工对照维护）', () => {
+        expect(Object.keys(translations.zh)).toEqual(Object.keys(translations.en));
+    });
+
     it('两语言都没有空字符串（windSuffix 例外：英文方位后不需要后缀）', () => {
         // 英文里 "NE" 后面不加东西，中文要加"风"，所以这两个空值是有意为之
         for (const key of keys) {
@@ -98,6 +102,23 @@ describe('translate', () => {
 
     it('未知 key 回退为 key 本身', () => {
         expect(translate('__no_such_key__' as TranslationKey, {}, 'en')).toBe('__no_such_key__');
+    });
+
+    it('新文案键 moonLine / lblPrecipStep / retry 中英俱全且插值正常', () => {
+        expect(translate('moonLine', { phase: 'New moon' }, 'en')).toBe('Moon (New moon)');
+        expect(translate('moonLine', { phase: '新月' }, 'zh')).toBe('月相（新月）');
+        // 英文模板不得出现中文全角括号
+        expect(translate('moonLine', { phase: 'x' }, 'en')).not.toMatch(/[（）]/);
+
+        expect(translate('lblPrecipStep', { h: 3 }, 'en')).toBe('Precip (3h)');
+        expect(translate('lblPrecipStep', { h: 3 }, 'zh')).toBe('降水（3h）');
+        expect(translate('lblPrecipStep', { h: 1 }, 'en')).not.toContain('{h}');
+
+        expect(translate('retry', {}, 'en')).toBe('Retry');
+        expect(translate('retry', {}, 'zh')).toBe('重试');
+        // lblPrecip 仍然保留（模板里旧用法不能被误删）
+        expect(translations.en.lblPrecip).toBe('Precip');
+        expect(translations.zh.lblPrecip).toBe('降水');
     });
 });
 
@@ -201,5 +222,59 @@ describe('展示类辅助函数', () => {
         }
         expect(severeLabel('thunder', 'zh')).toBe('雷暴');
         expect(severeEmoji('waves')).toBe('🌊');
+    });
+});
+
+describe('CAP 预警类型与级别', () => {
+    /** Windy CapAlertType 的完整单字母集合（见 plugin-devtools types.d.ts） */
+    const CAP_TYPES = [
+        'T', 'R', 'H', 'W', 'F', 'L', 'C', 'I', 'G', 'N', 'Q', 'S', 'A', 'P', 'V', 'E', 'M', '-',
+    ];
+
+    it('每个 CAP 类型都有中英可读文本，不会原样回显单字母', () => {
+        for (const type of CAP_TYPES) {
+            const enText = alertTypeText(type, 'en');
+            const zhText = alertTypeText(type, 'zh');
+            expect(enText, `en/${type}`).not.toBe(type);
+            expect(zhText, `zh/${type}`).not.toBe(type);
+            expect(enText.trim(), `en/${type}`).not.toBe('');
+            expect(zhText.trim(), `zh/${type}`).not.toBe('');
+        }
+    });
+
+    it('新增类型 P/V/E/M/- 的中英文本', () => {
+        expect(alertTypeText('P', 'en')).toBe('Hail');
+        expect(alertTypeText('P', 'zh')).toBe('冰雹');
+        expect(alertTypeText('V', 'en')).toBe('Volcanic ash');
+        expect(alertTypeText('V', 'zh')).toBe('火山灰');
+        expect(alertTypeText('E', 'en')).toBe('Earthquake');
+        expect(alertTypeText('E', 'zh')).toBe('地震');
+        expect(alertTypeText('M', 'en')).toBe('Landslide');
+        expect(alertTypeText('M', 'zh')).toBe('滑坡');
+        expect(alertTypeText('-', 'en')).toBe('Unknown hazard');
+        expect(alertTypeText('-', 'zh')).toBe('未知灾害');
+    });
+
+    it('新增完整英文名同样可识别', () => {
+        expect(alertTypeText('Hail', 'zh')).toBe('冰雹');
+        expect(alertTypeText('VolcanicAsh', 'zh')).toBe('火山灰');
+        expect(alertTypeText('Earthquake', 'zh')).toBe('地震');
+        expect(alertTypeText('Landslide', 'zh')).toBe('滑坡');
+        expect(alertTypeText('AirQuality', 'zh')).toBe('空气质量');
+        expect(alertTypeText('SnowIce', 'zh')).toBe('降雪');
+        expect(alertTypeText('SnowIce', 'en')).toBe('Snow / ice');
+    });
+
+    it("字母 'E' 在类型表是地震、在级别表是极端，两套编码不得串味", () => {
+        expect(alertTypeText('E', 'en')).toBe('Earthquake');
+        expect(alertTypeText('E', 'zh')).toBe('地震');
+        expect(alertSeverityText('E', 'en')).toBe('Extreme');
+        expect(alertSeverityText('E', 'zh')).toBe('极端');
+        expect(alertTypeText('E', 'zh')).not.toBe(alertSeverityText('E', 'zh'));
+    });
+
+    it('未知代码原样返回（不抛错、不显示 undefined）', () => {
+        expect(alertTypeText('ZZZ', 'en')).toBe('ZZZ');
+        expect(alertSeverityText('ZZZ', 'zh')).toBe('ZZZ');
     });
 });
